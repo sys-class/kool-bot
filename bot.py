@@ -1,7 +1,8 @@
 import discord
 from discord.ext import commands
 
-from config import TOKEN, SOURCE_CHANNEL_1, SOURCE_CHANNEL_2, TARGET_VOICE_CHANNELS
+from config import TOKEN, SOURCE_CHANNEL_1, SOURCE_CHANNEL_2, TARGET_VOICE_CHANNELS, ALLOWED_USERS
+from services.cooldown import CooldownManager
 from services.webhook import WebhookService
 
 
@@ -15,6 +16,7 @@ class CoolBot(commands.Bot):
         self.channel_creators = {}
         self.bot_created_channels = set()
         self.webhook_service = WebhookService()
+        self.command_cooldown = CooldownManager()
 
     async def setup_hook(self):
         await self.load_extension("cogs.moderation")
@@ -23,6 +25,17 @@ class CoolBot(commands.Bot):
         await self.load_extension("cogs.voice")
         await self.load_extension("cogs.fun")
         await self.load_extension("cogs.uwuify")
+
+        @self.before_invoke
+        async def global_cooldown(ctx):
+            if ctx.author.id in ALLOWED_USERS:
+                return
+            if not self.command_cooldown.check_cooldown(ctx.author.id):
+                raise commands.CommandOnCooldown(
+                    commands.Cooldown(1, self.command_cooldown.cooldown_time),
+                    self.command_cooldown.cooldown_time,
+                    commands.BucketType.user
+                )
 
     async def on_ready(self):
         print(f"Login: {self.user.name}")
@@ -71,6 +84,15 @@ class CoolBot(commands.Bot):
                 await self.webhook_service.send_webhook_message(target_channel, message)
 
         await self.process_commands(message)
+
+    async def on_command_error(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            await ctx.send(
+                f"Подожди {error.retry_after:.1f} сек. перед следующей командой.",
+                delete_after=3
+            )
+            return
+        await super().on_command_error(ctx, error)
 
     async def on_disconnect(self):
         print("Бот отключен")
