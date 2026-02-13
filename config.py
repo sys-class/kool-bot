@@ -1,6 +1,11 @@
-import pytz
+import os
 
-TOKEN = "" # nuh uh
+import pytz
+from dotenv import load_dotenv
+
+load_dotenv()
+
+TOKEN = os.getenv("TOKEN", "")
 ALLOWED_USERS = [587208453018091538, 890939158279884827, 1043834316620304394]  # дискорд юзер айди
 
 TARGET_VOICE_CHANNELS = {
