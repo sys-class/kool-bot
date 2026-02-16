@@ -1,6 +1,7 @@
 import asyncio
 
 import discord
+from discord import app_commands
 from discord.ext import commands, tasks
 
 from config import TARGET_VOICE_CHANNELS, SOURCE_CHANNEL_1
@@ -134,23 +135,26 @@ class VoiceCog(commands.Cog):
         if cleanup_tasks:
             await asyncio.gather(*cleanup_tasks, return_exceptions=True)
 
-    @commands.command(name="targets")
-    async def show_targets(self, ctx):
+    @app_commands.command(name="targets", description="Показывает целевые войс-каналы на сервере")
+    async def show_targets(self, interaction: discord.Interaction):
         """Показывает целевые войс-каналы на этом сервере"""
-        guild_id = ctx.guild.id
+        guild_id = interaction.guild_id
 
         if guild_id not in TARGET_VOICE_CHANNELS or not TARGET_VOICE_CHANNELS[guild_id]:
-            await ctx.send("На этом сервере нет целевых войс-каналов.")
+            await interaction.response.send_message(
+                "На этом сервере нет целевых войс-каналов.",
+                ephemeral=True
+            )
             return
 
         embed = discord.Embed(
-            title="🎯 Целевые войс-каналы",
-            description=f"Сервер: {ctx.guild.name}",
+            title="Целевые войс-каналы",
+            description=f"Сервер: {interaction.guild.name}",
             color=discord.Color.green()
         )
 
         for i, channel_id in enumerate(TARGET_VOICE_CHANNELS[guild_id], 1):
-            channel = ctx.guild.get_channel(channel_id)
+            channel = interaction.guild.get_channel(channel_id)
             channel_name = channel.name if channel else f"Канал не найден ({channel_id})"
             embed.add_field(
                 name=f"Канал #{i}",
@@ -158,55 +162,67 @@ class VoiceCog(commands.Cog):
                 inline=False
             )
 
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
-    @commands.command(name="addtarget")
-    @commands.has_permissions(administrator=True)
-    async def add_target(self, ctx, channel_id: int):
+    @app_commands.command(name="addtarget", description="Добавляет войс-канал в целевые")
+    @app_commands.describe(channel="Голосовой канал для добавления")
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.default_permissions(administrator=True)
+    async def add_target(self, interaction: discord.Interaction, channel: discord.VoiceChannel):
         """Добавляет войс-канал в целевые"""
-        channel = ctx.guild.get_channel(channel_id)
-        if not channel:
-            await ctx.send("Канал с таким ID не найден на этом сервере.")
-            return
-
-        if not isinstance(channel, discord.VoiceChannel):
-            await ctx.send("Указанный канал не является голосовым каналом.")
-            return
-
-        guild_id = ctx.guild.id
+        guild_id = interaction.guild_id
+        channel_id = channel.id
 
         if guild_id not in TARGET_VOICE_CHANNELS:
             TARGET_VOICE_CHANNELS[guild_id] = []
 
         if channel_id in TARGET_VOICE_CHANNELS[guild_id]:
-            await ctx.send(f"Канал {channel.name} уже добавлен в целевые.")
+            await interaction.response.send_message(
+                f"Канал {channel.name} уже добавлен в целевые.",
+                ephemeral=True
+            )
             return
 
         TARGET_VOICE_CHANNELS[guild_id].append(channel_id)
-        await ctx.send(f"✅ Канал **{channel.name}** добавлен в целевые войс-каналы!")
+        await interaction.response.send_message(
+            f"Канал **{channel.name}** добавлен в целевые войс-каналы!"
+        )
 
     @add_target.error
-    async def add_target_error(self, ctx, error):
-        if isinstance(error, commands.MissingPermissions):
-            await ctx.send("У вас недостаточно прав для использования этой команды.")
-        elif isinstance(error, commands.BadArgument):
-            await ctx.send("Пожалуйста, укажите корректный ID канала.")
+    async def add_target_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.MissingPermissions):
+            await interaction.response.send_message(
+                "У вас недостаточно прав для использования этой команды.",
+                ephemeral=True
+            )
         else:
-            await ctx.send("Произошла ошибка при выполнении команды.")
+            await interaction.response.send_message(
+                "Произошла ошибка при выполнении команды.",
+                ephemeral=True
+            )
             print(f"Add target error: {error}")
 
-    @commands.command(name="removetarget")
-    @commands.has_permissions(administrator=True)
-    async def remove_target(self, ctx, channel_id: int):
+    @app_commands.command(name="removetarget", description="Удаляет войс-канал из целевых")
+    @app_commands.describe(channel="Голосовой канал для удаления")
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.default_permissions(administrator=True)
+    async def remove_target(self, interaction: discord.Interaction, channel: discord.VoiceChannel):
         """Удаляет войс-канал из целевых"""
-        guild_id = ctx.guild.id
+        guild_id = interaction.guild_id
+        channel_id = channel.id
 
         if guild_id not in TARGET_VOICE_CHANNELS or not TARGET_VOICE_CHANNELS[guild_id]:
-            await ctx.send("На этом сервере нет целевых войс-каналов.")
+            await interaction.response.send_message(
+                "На этом сервере нет целевых войс-каналов.",
+                ephemeral=True
+            )
             return
 
         if channel_id not in TARGET_VOICE_CHANNELS[guild_id]:
-            await ctx.send("Этот канал не является целевым на этом сервере.")
+            await interaction.response.send_message(
+                "Этот канал не является целевым на этом сервере.",
+                ephemeral=True
+            )
             return
 
         TARGET_VOICE_CHANNELS[guild_id].remove(channel_id)
@@ -214,18 +230,22 @@ class VoiceCog(commands.Cog):
         if not TARGET_VOICE_CHANNELS[guild_id]:
             del TARGET_VOICE_CHANNELS[guild_id]
 
-        channel = ctx.guild.get_channel(channel_id)
-        channel_name = channel.name if channel else f"Канал ({channel_id})"
-        await ctx.send(f"✅ Канал **{channel_name}** удален из целевых войс-каналов!")
+        await interaction.response.send_message(
+            f"Канал **{channel.name}** удален из целевых войс-каналов!"
+        )
 
     @remove_target.error
-    async def remove_target_error(self, ctx, error):
-        if isinstance(error, commands.MissingPermissions):
-            await ctx.send("У вас недостаточно прав для использования этой команды.")
-        elif isinstance(error, commands.BadArgument):
-            await ctx.send("Пожалуйста, укажите корректный ID канала.")
+    async def remove_target_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.MissingPermissions):
+            await interaction.response.send_message(
+                "У вас недостаточно прав для использования этой команды.",
+                ephemeral=True
+            )
         else:
-            await ctx.send("Произошла ошибка при выполнении команды.")
+            await interaction.response.send_message(
+                "Произошла ошибка при выполнении команды.",
+                ephemeral=True
+            )
             print(f"Remove target error: {error}")
 
 

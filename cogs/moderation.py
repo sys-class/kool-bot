@@ -1,4 +1,5 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from config import ALLOWED_USERS
@@ -8,29 +9,32 @@ class ModerationCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command(name="clear")
-    @commands.has_permissions(manage_messages=True)
-    async def clear(self, ctx, amount: int = 10):
+    @app_commands.command(name="clear", description="Удаляет указанное количество сообщений")
+    @app_commands.describe(amount="Количество сообщений для удаления (по умолчанию 10)")
+    @app_commands.checks.has_permissions(manage_messages=True)
+    @app_commands.default_permissions(manage_messages=True)
+    async def clear(self, interaction: discord.Interaction, amount: int = 10):
         if amount <= 0:
-            await ctx.send("Сколько?")
+            await interaction.response.send_message("Сколько?", ephemeral=True)
             return
 
         try:
-            deleted = await ctx.channel.purge(limit=amount + 1, check=lambda m: m != ctx.message)
-            await ctx.send(f"Я удалил {len(deleted)} сообщений для тебя~", delete_after=5)
+            await interaction.response.defer(ephemeral=True)
+            deleted = await interaction.channel.purge(limit=amount)
+            await interaction.followup.send(f"Я удалил {len(deleted)} сообщений для тебя~")
         except discord.errors.Forbidden:
-            await ctx.send("Нет прав в канале")
+            await interaction.followup.send("У тебя нет прав в канале")
         except Exception as e:
             print(f"Clear error: {e}")
+            await interaction.followup.send("Произошла ошибка")
 
     @clear.error
-    async def clear_error(self, ctx, error):
-        if isinstance(error, commands.MissingPermissions):
-            await ctx.send("Нет прав")
-        elif isinstance(error, commands.BadArgument):
-            await ctx.send("Сколько?")
+    async def clear_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.MissingPermissions):
+            await interaction.response.send_message("У тебя нет прав", ephemeral=True)
         else:
             print(f"Clear error: {error}")
+            await interaction.response.send_message("Произошла ошибка", ephemeral=True)
 
     @commands.command(name="disconnect")
     async def disconnect(self, ctx, channel_id: int):
@@ -51,7 +55,7 @@ class ModerationCog(commands.Cog):
                     await member.move_to(None)
                     disconnected += 1
                 except discord.errors.Forbidden:
-                    await ctx.send(f"Не удалось отключить {member.name}. Нет прав.", delete_after=5)
+                    await ctx.send(f"Не удалось отключить {member.name}. У тебя нет прав.", delete_after=5)
                 except Exception as e:
                     print(f"Disconnect member error: {e}")
 

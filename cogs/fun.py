@@ -1,6 +1,7 @@
 import random
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 
@@ -8,10 +9,11 @@ class FunCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command(name="furryrate")
-    async def furryrate(self, ctx, member: discord.Member = None):
+    @app_commands.command(name="furryrate", description="Показывает процент фуррь")
+    @app_commands.describe(member="Пользователь для оценки (по умолчанию - ты)")
+    async def furryrate(self, interaction: discord.Interaction, member: discord.Member = None):
         """Фуррирейт"""
-        member = member or ctx.author
+        member = member or interaction.user
         random.seed(member.id + 42)
         rate = random.randint(0, 100)
         random.seed()
@@ -34,12 +36,13 @@ class FunCog(commands.Cog):
 
         embed = discord.Embed(title=f"{member.display_name}", color=0x9B59B6)
         embed.description = f"{bar} **{rate}%**\n{comment}"
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
-    @commands.command(name="femboyrate")
-    async def femboyrate(self, ctx, member: discord.Member = None):
+    @app_commands.command(name="femboyrate", description="Показывает процент фембой")
+    @app_commands.describe(member="Пользователь для оценки (по умолчанию - ты)")
+    async def femboyrate(self, interaction: discord.Interaction, member: discord.Member = None):
         """Фембойрейт"""
-        member = member or ctx.author
+        member = member or interaction.user
         random.seed(member.id + 99)
         rate = random.randint(0, 100)
         random.seed()
@@ -62,7 +65,7 @@ class FunCog(commands.Cog):
 
         embed = discord.Embed(title=f"{member.display_name}", color=0xFFB6C1)
         embed.description = f"{bar} **{rate}%**\n{comment}"
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
 
 async def setup(bot: commands.Bot):

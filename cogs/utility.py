@@ -1,6 +1,7 @@
 import datetime
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from config import timezones
@@ -16,18 +17,21 @@ class UtilityCog(commands.Cog):
         "ModerationCog": "\U0001f6e1  Модерация",
         "VoiceCog": "\U0001f50a  Голосовые каналы",
         "FunCog": "\U0001f43e  Фан",
+        "UwuifyCog": "\U0001f43e  Фан",
     }
 
     @commands.command(name="h", aliases=["help"], help="Выводит полный список команд.")
     async def help_command(self, ctx):
         embed = discord.Embed(
             title="Список команд",
-            description="Префикс: `$`",
+            description="Префикс: `$` | Слэш-команды: `/`",
             color=0x251530,
         )
         embed.set_thumbnail(url=self.bot.user.avatar.url if self.bot.user.avatar else None)
 
         sections: dict[str, list[str]] = {}
+
+        # Prefix commands
         for cmd in sorted(self.bot.commands, key=lambda c: c.qualified_name):
             if cmd.hidden:
                 continue
@@ -42,6 +46,15 @@ class UtilityCog(commands.Cog):
             if description:
                 line += f" — {description}"
 
+            sections.setdefault(section, []).append(line)
+
+        # Slash commands
+        for cmd in self.bot.tree.get_commands():
+            cog = getattr(cmd, "binding", None)
+            cog_name = type(cog).__name__ if cog else None
+            section = self.COG_DISPLAY.get(cog_name, "\U0001f4e6  Другое")
+
+            line = f"`/{cmd.name}` — {cmd.description}"
             sections.setdefault(section, []).append(line)
 
         for section_name, lines in sections.items():
@@ -61,31 +74,34 @@ class UtilityCog(commands.Cog):
         except Exception as e:
             print(f"Say error: {e}")
 
-    @commands.command(name="time")
-    async def time(self, ctx):
+    @app_commands.command(name="time", description="Показывает текущее время в разных часовых поясах")
+    async def time(self, interaction: discord.Interaction):
         try:
             msk_time = datetime.datetime.now(timezones["msk"]).strftime("%H:%M:%S")
             ekb_time = datetime.datetime.now(timezones["ekb"]).strftime("%H:%M:%S")
             ny_time = datetime.datetime.now(timezones["ny"]).strftime("%H:%M:%S")
 
-            await ctx.send(f"Время:\nМСК: {msk_time}\nЕКБ: {ekb_time}\nNew York: {ny_time}")
+            await interaction.response.send_message(
+                f"Время:\nМСК: {msk_time}\nЕКБ: {ekb_time}\nNew York: {ny_time}"
+            )
         except Exception as e:
             print(f"Time error: {e}")
-            await ctx.send("Ошибка при получении времени")
+            await interaction.response.send_message("Ошибка при получении времени", ephemeral=True)
 
-    @commands.command(name="avatar")
-    async def avatar(self, ctx, member: discord.Member = None):
+    @app_commands.command(name="avatar", description="Показывает аватар пользователя")
+    @app_commands.describe(member="Пользователь (по умолчанию - ты)")
+    async def avatar(self, interaction: discord.Interaction, member: discord.Member = None):
         if member is None:
-            member = ctx.author
+            member = interaction.user
 
         try:
             avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
             embed = discord.Embed(title=f"Аватар пользователя {member.name}", color=0x251530)
             embed.set_image(url=avatar_url)
-            await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed)
         except Exception as e:
             print(f"Avatar error: {e}")
-            await ctx.send("Не удалось получить аватар")
+            await interaction.response.send_message("Не удалось получить аватар", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

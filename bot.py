@@ -1,4 +1,5 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from config import TOKEN, SOURCE_CHANNEL_1, SOURCE_CHANNEL_2, TARGET_VOICE_CHANNELS, ALLOWED_USERS
@@ -36,6 +37,19 @@ class CoolBot(commands.Bot):
                     self.command_cooldown.cooldown_time,
                     commands.BucketType.user
                 )
+
+        async def global_slash_cooldown(interaction: discord.Interaction) -> bool:
+            if interaction.user.id in ALLOWED_USERS:
+                return True
+            if not self.command_cooldown.check_cooldown(interaction.user.id):
+                await interaction.response.send_message(
+                    f"Подожди {self.command_cooldown.cooldown_time} сек. перед следующей командой.",
+                    ephemeral=True
+                )
+                return False
+            return True
+
+        self.tree.interaction_check = global_slash_cooldown
 
     async def on_ready(self):
         print(f"Login: {self.user.name}")
