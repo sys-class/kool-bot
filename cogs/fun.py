@@ -68,5 +68,29 @@ class FunCog(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
 
+    EIGHTBALL_ANSWERS = [
+        "Да", "Нет", "Определённо да", "Скорее всего", "Не уверен",
+        "Даже не думай", "Однозначно нет", "Спроси позже", "Звёзды говорят да",
+        "Звёзды говорят нет", "Возможно", "Ни за что", "Абсолютно",
+        "Не рассчитывай на это", "Без сомнений", "Мой ответ — нет",
+        "Шансы хорошие", "Весьма сомнительно", "Да, но не сейчас", "Нет, и не проси",
+    ]
+
+    @app_commands.command(name="8ball", description="Магический шар отвечает на твой вопрос")
+    @app_commands.describe(question="Твой вопрос")
+    async def eightball(self, interaction: discord.Interaction, question: str):
+        answer = random.choice(self.EIGHTBALL_ANSWERS)
+        embed = discord.Embed(title="Магический шар", color=0x1F1F8F)
+        embed.add_field(name="Вопрос", value=question, inline=False)
+        embed.add_field(name="Ответ", value=f"**{answer}**", inline=False)
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="coinflip", description="Подбрасывает монетку")
+    async def coinflip(self, interaction: discord.Interaction):
+        result = random.choice(["Орёл", "Решка"])
+        emoji = "\U0001fa99"
+        await interaction.response.send_message(f"{emoji} **{result}!**")
+
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(FunCog(bot))
