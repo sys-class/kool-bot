@@ -20,35 +20,17 @@ class UtilityCog(commands.Cog):
         "UwuifyCog": "\U0001f43e  Фан",
     }
 
-    @commands.command(name="h", aliases=["help"], help="Выводит полный список команд.")
-    async def help_command(self, ctx):
+    @app_commands.command(name="help", description="Выводит полный список команд")
+    async def help_command(self, interaction: discord.Interaction):
         embed = discord.Embed(
             title="Список команд",
-            description="Префикс: `$` | Слэш-команды: `/`",
+            description="Все команды используют `/`",
             color=0x251530,
         )
         embed.set_thumbnail(url=self.bot.user.avatar.url if self.bot.user.avatar else None)
 
         sections: dict[str, list[str]] = {}
 
-        # Prefix commands
-        for cmd in sorted(self.bot.commands, key=lambda c: c.qualified_name):
-            if cmd.hidden:
-                continue
-            cog_name = type(cmd.cog).__name__ if cmd.cog else None
-            section = self.COG_DISPLAY.get(cog_name, "\U0001f4e6  Другое")
-
-            signature = f"${cmd.qualified_name}"
-            if cmd.signature:
-                signature += f" {cmd.signature}"
-            description = cmd.help or cmd.short_doc or ""
-            line = f"`{signature}`"
-            if description:
-                line += f" — {description}"
-
-            sections.setdefault(section, []).append(line)
-
-        # Slash commands
         for cmd in self.bot.tree.get_commands():
             cog = getattr(cmd, "binding", None)
             cog_name = type(cog).__name__ if cog else None
@@ -60,19 +42,15 @@ class UtilityCog(commands.Cog):
         for section_name, lines in sections.items():
             embed.add_field(name=f"\u200b\n{section_name}", value="\n".join(lines), inline=False)
 
-        embed.set_footer(text=f"Запросил {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+        embed.set_footer(text=f"Запросил {interaction.user.display_name}", icon_url=interaction.user.display_avatar.url)
 
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
-    @commands.command(name="say")
-    async def say(self, ctx, *, text: str):
-        try:
-            await ctx.send(text)
-            await ctx.message.delete()
-        except discord.errors.Forbidden:
-            pass
-        except Exception as e:
-            print(f"Say error: {e}")
+    @app_commands.command(name="say", description="Отправляет сообщение от имени бота")
+    @app_commands.describe(text="Текст сообщения")
+    @app_commands.guild_only()
+    async def say(self, interaction: discord.Interaction, text: str):
+        await interaction.response.send_message(text)
 
     @app_commands.command(name="time", description="Показывает текущее время в разных часовых поясах")
     async def time(self, interaction: discord.Interaction):

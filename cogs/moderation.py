@@ -36,45 +36,30 @@ class ModerationCog(commands.Cog):
             print(f"Clear error: {error}")
             await interaction.response.send_message("Произошла ошибка", ephemeral=True)
 
-    @commands.command(name="disconnect")
-    async def disconnect(self, ctx, channel_id: int):
-        """Отключает всех участников из войса по айди."""
-        if ctx.author.id not in ALLOWED_USERS:
-            await ctx.send("Вы не админ.")
+    @app_commands.command(name="disconnect", description="Отключает всех участников из войс-канала")
+    @app_commands.describe(channel="Голосовой канал для отключения участников")
+    @app_commands.guild_only()
+    async def disconnect(self, interaction: discord.Interaction, channel: discord.VoiceChannel):
+        if interaction.user.id not in ALLOWED_USERS:
+            await interaction.response.send_message("Вы не админ.", ephemeral=True)
             return
 
-        try:
-            channel = self.bot.get_channel(channel_id)
-            if not channel or not isinstance(channel, discord.VoiceChannel):
-                await ctx.send("Указан неверный айди войса.")
-                return
+        if not channel.members:
+            await interaction.response.send_message("В канале нет пользователей для отключения.", ephemeral=True)
+            return
 
-            disconnected = 0
-            for member in channel.members:
-                try:
-                    await member.move_to(None)
-                    disconnected += 1
-                except discord.errors.Forbidden:
-                    await ctx.send(f"Не удалось отключить {member.name}. У тебя нет прав.", delete_after=5)
-                except Exception as e:
-                    print(f"Disconnect member error: {e}")
+        await interaction.response.defer(ephemeral=True)
+        disconnected = 0
+        for member in channel.members:
+            try:
+                await member.move_to(None)
+                disconnected += 1
+            except discord.errors.Forbidden:
+                pass
+            except Exception as e:
+                print(f"Disconnect member error: {e}")
 
-            if disconnected > 0:
-                await ctx.send(f"Отключено {disconnected} пользователей.")
-            else:
-                await ctx.send("В канале нет пользователей для отключения.")
-
-        except Exception as e:
-            print(f"Disconnect error: {e}")
-            await ctx.send("Произошла ошибка при выполнении команды.")
-
-    @disconnect.error
-    async def disconnect_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument):
-            await ctx.send("Неверный айди войса.")
-        else:
-            print(f"Disconnect error: {error}")
-            await ctx.send("Произошла ошибка при выполнении команды.")
+        await interaction.followup.send(f"Отключено {disconnected} пользователей из {channel.name}.")
 
 
 async def setup(bot: commands.Bot):
