@@ -1,3 +1,7 @@
 .env
 .idea/
 .idea/*
+__pycache__/
+*.pyc
+*.pyo
+uwuified.json
