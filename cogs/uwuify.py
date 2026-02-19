@@ -8,6 +8,10 @@ from discord.ext import commands
 
 UWUIFIED_FILE = Path("uwuified.json")
 
+PROTECTED_USERS = {1130462413087592528}
+
+_URL_PATTERN = re.compile(r"https?://\S+")
+
 WORD_MAP = {
     "you": "wu",
     "cute": "kawaii",
@@ -50,9 +54,16 @@ _LETTER_PATTERN = re.compile("[" + re.escape("".join(LETTER_MAP.keys())) + "]")
 
 def felinid_accent(text: str) -> str:
     """Apply felinid accent transformations to text."""
-    text = _WORD_PATTERN.sub(_word_replacer, text)
-    text = _LETTER_PATTERN.sub(lambda m: LETTER_MAP[m.group(0)], text)
-    return text
+    parts = _URL_PATTERN.split(text)
+    urls = _URL_PATTERN.findall(text)
+    result = []
+    for i, part in enumerate(parts):
+        part = _WORD_PATTERN.sub(_word_replacer, part)
+        part = _LETTER_PATTERN.sub(lambda m: LETTER_MAP[m.group(0)], part)
+        result.append(part)
+        if i < len(urls):
+            result.append(urls[i])
+    return "".join(result)
 
 
 class UwuifyCog(commands.Cog):
@@ -80,6 +91,10 @@ class UwuifyCog(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @app_commands.guild_only()
     async def uwuify_cmd(self, interaction: discord.Interaction, member: discord.Member):
+        if member.id in PROTECTED_USERS:
+            await interaction.response.send_message("Этого пользователя нельзя uwuify.", ephemeral=True)
+            return
+
         guild_key = str(interaction.guild_id)
         users = self.uwuified.setdefault(guild_key, [])
 
