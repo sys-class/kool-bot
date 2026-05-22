@@ -1,6 +1,6 @@
-import datetime
 import json
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import discord
@@ -14,12 +14,12 @@ RETENTION_HOURS = 24 * 7
 SPARK_CHARS = "▁▂▃▄▅▆▇█"
 
 
-def _hour_key(dt: datetime.datetime) -> str:
+def _hour_key(dt: datetime) -> str:
     return dt.strftime("%Y%m%d%H")
 
 
-def _now_hour() -> datetime.datetime:
-    return datetime.datetime.utcnow().replace(minute=0, second=0, microsecond=0)
+def _now_hour() -> datetime:
+    return datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
 
 
 def _sparkline(values: list[int]) -> str:
@@ -70,7 +70,7 @@ class StatsCog(commands.Cog):
         await self.bot.wait_until_ready()
 
     def _prune(self):
-        cutoff = _now_hour() - datetime.timedelta(hours=RETENTION_HOURS)
+        cutoff = _now_hour() - timedelta(hours=RETENTION_HOURS)
         cutoff_key = _hour_key(cutoff)
         for guild in self.data.get("guilds", {}).values():
             for bucket in ("hours", "channels"):
@@ -106,22 +106,22 @@ class StatsCog(commands.Cog):
 
         now = _now_hour()
         hours_24 = [
-            guild["hours"].get(_hour_key(now - datetime.timedelta(hours=i)), 0)
+            guild["hours"].get(_hour_key(now - timedelta(hours=i)), 0)
             for i in range(23, -1, -1)
         ]
         total_24 = sum(hours_24)
 
         hours_7d = [
-            guild["hours"].get(_hour_key(now - datetime.timedelta(hours=i)), 0)
+            guild["hours"].get(_hour_key(now - timedelta(hours=i)), 0)
             for i in range(RETENTION_HOURS)
         ]
         total_7d = sum(hours_7d)
 
         peak_idx = max(range(24), key=lambda i: hours_24[i])
-        peak_hour = (now - datetime.timedelta(hours=23 - peak_idx)).hour
+        peak_hour = (now - timedelta(hours=23 - peak_idx)).hour
 
         channel_totals: dict[str, int] = defaultdict(int)
-        cutoff_24 = _hour_key(now - datetime.timedelta(hours=23))
+        cutoff_24 = _hour_key(now - timedelta(hours=23))
         for hkey, channels in guild.get("channels", {}).items():
             if hkey < cutoff_24:
                 continue
