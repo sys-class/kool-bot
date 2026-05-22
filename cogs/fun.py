@@ -14,9 +14,7 @@ class FunCog(commands.Cog):
     async def furryrate(self, interaction: discord.Interaction, member: discord.Member = None):
         """Фуррирейт"""
         member = member or interaction.user
-        random.seed(member.id + 42)
-        rate = random.randint(0, 100)
-        random.seed()
+        rate = random.Random(member.id + 42).randint(0, 100)
 
         bar_filled = round(rate / 10)
         bar = "\U0001f43e" * bar_filled + "\u2b1b" * (10 - bar_filled)
@@ -43,9 +41,7 @@ class FunCog(commands.Cog):
     async def femboyrate(self, interaction: discord.Interaction, member: discord.Member = None):
         """Фембойрейт"""
         member = member or interaction.user
-        random.seed(member.id + 99)
-        rate = random.randint(0, 100)
-        random.seed()
+        rate = random.Random(member.id + 99).randint(0, 100)
 
         bar_filled = round(rate / 10)
         bar = "\U0001f338" * bar_filled + "\u2b1b" * (10 - bar_filled)
