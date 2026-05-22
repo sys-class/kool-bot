@@ -5,6 +5,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 from config import TARGET_VOICE_CHANNELS, SOURCE_CHANNEL_1
+from services import embeds
 from services.cooldown import CooldownManager
 
 
@@ -142,27 +143,20 @@ class VoiceCog(commands.Cog):
 
         if guild_id not in TARGET_VOICE_CHANNELS or not TARGET_VOICE_CHANNELS[guild_id]:
             await interaction.response.send_message(
-                "На этом сервере нет целевых войс-каналов.",
-                ephemeral=True
+                embed=embeds.err("целевых каналов нет", user=interaction.user),
+                ephemeral=True,
             )
             return
 
-        embed = discord.Embed(
-            title="Целевые войс-каналы",
-            description=f"Сервер: {interaction.guild.name}",
-            color=discord.Color.green()
-        )
-
+        lines = []
         for i, channel_id in enumerate(TARGET_VOICE_CHANNELS[guild_id], 1):
             channel = interaction.guild.get_channel(channel_id)
-            channel_name = channel.name if channel else f"Канал не найден ({channel_id})"
-            embed.add_field(
-                name=f"Канал #{i}",
-                value=f"**ID:** {channel_id}\n**Имя:** {channel_name}",
-                inline=False
-            )
+            name = channel.mention if channel else f"`не найден` · {channel_id}"
+            lines.append(f"`{i:02d}`  {name}")
 
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(
+            embed=embeds.voice(title="целевые каналы", description="\n".join(lines), user=interaction.user)
+        )
 
     @app_commands.command(name="addtarget", description="Добавляет войс-канал в целевые")
     @app_commands.describe(channel="Голосовой канал для добавления")
@@ -178,29 +172,27 @@ class VoiceCog(commands.Cog):
 
         if channel_id in TARGET_VOICE_CHANNELS[guild_id]:
             await interaction.response.send_message(
-                f"Канал {channel.name} уже добавлен в целевые.",
-                ephemeral=True
+                embed=embeds.err(f"{channel.mention} уже в целевых", user=interaction.user),
+                ephemeral=True,
             )
             return
 
         TARGET_VOICE_CHANNELS[guild_id].append(channel_id)
         await interaction.response.send_message(
-            f"Канал **{channel.name}** добавлен в целевые войс-каналы!"
+            embed=embeds.ok(description=f"добавлен · {channel.mention}", user=interaction.user)
         )
 
     @add_target.error
     async def add_target_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.MissingPermissions):
-            await interaction.response.send_message(
-                "У вас недостаточно прав для использования этой команды.",
-                ephemeral=True
-            )
+            msg = "недостаточно прав"
         else:
-            await interaction.response.send_message(
-                "Произошла ошибка при выполнении команды.",
-                ephemeral=True
-            )
+            msg = "что-то пошло не так"
             print(f"Add target error: {error}")
+        await interaction.response.send_message(
+            embed=embeds.err(msg, user=interaction.user),
+            ephemeral=True,
+        )
 
     @app_commands.command(name="removetarget", description="Удаляет войс-канал из целевых")
     @app_commands.describe(channel="Голосовой канал для удаления")
@@ -213,40 +205,37 @@ class VoiceCog(commands.Cog):
 
         if guild_id not in TARGET_VOICE_CHANNELS or not TARGET_VOICE_CHANNELS[guild_id]:
             await interaction.response.send_message(
-                "На этом сервере нет целевых войс-каналов.",
-                ephemeral=True
+                embed=embeds.err("целевых каналов нет", user=interaction.user),
+                ephemeral=True,
             )
             return
 
         if channel_id not in TARGET_VOICE_CHANNELS[guild_id]:
             await interaction.response.send_message(
-                "Этот канал не является целевым на этом сервере.",
-                ephemeral=True
+                embed=embeds.err("канал не в целевых", user=interaction.user),
+                ephemeral=True,
             )
             return
 
         TARGET_VOICE_CHANNELS[guild_id].remove(channel_id)
-
         if not TARGET_VOICE_CHANNELS[guild_id]:
             del TARGET_VOICE_CHANNELS[guild_id]
 
         await interaction.response.send_message(
-            f"Канал **{channel.name}** удален из целевых войс-каналов!"
+            embed=embeds.ok(description=f"удалён · {channel.mention}", user=interaction.user)
         )
 
     @remove_target.error
     async def remove_target_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.MissingPermissions):
-            await interaction.response.send_message(
-                "У вас недостаточно прав для использования этой команды.",
-                ephemeral=True
-            )
+            msg = "недостаточно прав"
         else:
-            await interaction.response.send_message(
-                "Произошла ошибка при выполнении команды.",
-                ephemeral=True
-            )
+            msg = "что-то пошло не так"
             print(f"Remove target error: {error}")
+        await interaction.response.send_message(
+            embed=embeds.err(msg, user=interaction.user),
+            ephemeral=True,
+        )
 
 
 async def setup(bot: commands.Bot):
