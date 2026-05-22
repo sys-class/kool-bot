@@ -19,6 +19,9 @@ class UtilityCog(commands.Cog):
         "VoiceCog": "голосовые",
         "FunCog": "фан",
         "UwuifyCog": "фан",
+        "SocialCog": "социальное",
+        "RemindersCog": "напоминания",
+        "StatsCog": "статистика",
     }
 
     @app_commands.command(name="help", description="Выводит полный список команд")

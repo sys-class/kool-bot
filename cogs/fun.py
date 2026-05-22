@@ -1,10 +1,13 @@
 import random
+import re
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from services import embeds
+
+_DICE_RE = re.compile(r"^\s*(\d{1,2})d(\d{1,3})\s*$", re.IGNORECASE)
 
 
 class FunCog(commands.Cog):
@@ -81,6 +84,48 @@ class FunCog(commands.Cog):
             user=interaction.user,
         )
         await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="dice", description="Бросок кубиков, например 2d6")
+    @app_commands.describe(roll="формат NdM, например 2d6 или 1d20")
+    async def dice(self, interaction: discord.Interaction, roll: str = "1d6"):
+        m = _DICE_RE.match(roll)
+        if not m:
+            await interaction.response.send_message(
+                embed=embeds.err("формат · `NdM` · например `2d6`", user=interaction.user),
+                ephemeral=True,
+            )
+            return
+        n, sides = int(m.group(1)), int(m.group(2))
+        if n < 1 or sides < 2 or n > 20 or sides > 100:
+            await interaction.response.send_message(
+                embed=embeds.err("границы · `N` 1–20 · `M` 2–100", user=interaction.user),
+                ephemeral=True,
+            )
+            return
+        rolls = [random.randint(1, sides) for _ in range(n)]
+        total = sum(rolls)
+        rolls_str = " · ".join(f"`{r}`" for r in rolls)
+        desc = f"{rolls_str}\n\n**{total}**" if n > 1 else f"**{total}**"
+        await interaction.response.send_message(
+            embed=embeds.fun(title=f"{n}d{sides}", description=desc, user=interaction.user)
+        )
+
+    @app_commands.command(name="choose", description="Выбирает один вариант из списка")
+    @app_commands.describe(options="варианты через запятую · a, b, c")
+    async def choose(self, interaction: discord.Interaction, options: str):
+        items = [x.strip() for x in options.split(",") if x.strip()]
+        if len(items) < 2:
+            await interaction.response.send_message(
+                embed=embeds.err("нужно минимум 2 варианта через запятую", user=interaction.user),
+                ephemeral=True,
+            )
+            return
+        if len(items) > 20:
+            items = items[:20]
+        picked = random.choice(items)
+        await interaction.response.send_message(
+            embed=embeds.fun(title="выбор", description=f"**{picked}**", user=interaction.user)
+        )
 
     @app_commands.command(name="coinflip", description="Подбрасывает монетку")
     async def coinflip(self, interaction: discord.Interaction):

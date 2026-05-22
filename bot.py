@@ -32,6 +32,9 @@ class CoolBot(commands.Bot):
         await self.load_extension("cogs.voice")
         await self.load_extension("cogs.fun")
         await self.load_extension("cogs.uwuify")
+        await self.load_extension("cogs.social")
+        await self.load_extension("cogs.reminders")
+        await self.load_extension("cogs.stats")
 
         async def global_slash_cooldown(interaction: discord.Interaction) -> bool:
             if interaction.user.id in ALLOWED_USERS:
