@@ -5,6 +5,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from config import timezones
+from services import embeds
 
 
 class UtilityCog(commands.Cog):
@@ -12,37 +13,31 @@ class UtilityCog(commands.Cog):
         self.bot = bot
 
     COG_DISPLAY = {
-        "UtilityCog": "\U0001f4ac  Общие",
-        "AnonymousCog": "\U0001f4ac  Общие",
-        "ModerationCog": "\U0001f6e1  Модерация",
-        "VoiceCog": "\U0001f50a  Голосовые каналы",
-        "FunCog": "\U0001f43e  Фан",
-        "UwuifyCog": "\U0001f43e  Фан",
+        "UtilityCog": "общие",
+        "AnonymousCog": "общие",
+        "ModerationCog": "модерация",
+        "VoiceCog": "голосовые",
+        "FunCog": "фан",
+        "UwuifyCog": "фан",
     }
 
     @app_commands.command(name="help", description="Выводит полный список команд")
     async def help_command(self, interaction: discord.Interaction):
-        embed = discord.Embed(
-            title="Список команд",
-            description="Все команды используют `/`",
-            color=0x251530,
-        )
-        embed.set_thumbnail(url=self.bot.user.avatar.url if self.bot.user.avatar else None)
+        embed = embeds.info(title="справка", user=interaction.user)
 
         sections: dict[str, list[str]] = {}
-
         for cmd in self.bot.tree.get_commands():
             cog = getattr(cmd, "binding", None)
             cog_name = type(cog).__name__ if cog else None
-            section = self.COG_DISPLAY.get(cog_name, "\U0001f4e6  Другое")
+            section = self.COG_DISPLAY.get(cog_name, "другое")
+            sections.setdefault(section, []).append(f"`/{cmd.name}` — {cmd.description.lower()}")
 
-            line = f"`/{cmd.name}` — {cmd.description}"
-            sections.setdefault(section, []).append(line)
-
-        for section_name, lines in sections.items():
-            embed.add_field(name=f"\u200b\n{section_name}", value="\n".join(lines), inline=False)
-
-        embed.set_footer(text=f"Запросил {interaction.user.display_name}", icon_url=interaction.user.display_avatar.url)
+        for section_name in sorted(sections):
+            embed.add_field(
+                name=section_name,
+                value="\n".join(sorted(sections[section_name])),
+                inline=False,
+            )
 
         await interaction.response.send_message(embed=embed)
 
@@ -55,31 +50,40 @@ class UtilityCog(commands.Cog):
     @app_commands.command(name="time", description="Показывает текущее время в разных часовых поясах")
     async def time(self, interaction: discord.Interaction):
         try:
-            msk_time = datetime.datetime.now(timezones["msk"]).strftime("%H:%M:%S")
-            ekb_time = datetime.datetime.now(timezones["ekb"]).strftime("%H:%M:%S")
-            ny_time = datetime.datetime.now(timezones["ny"]).strftime("%H:%M:%S")
-
+            rows = [
+                ("мск", "msk"),
+                ("екб", "ekb"),
+                ("ny ", "ny"),
+            ]
+            lines = [
+                f"`{label}`  {datetime.datetime.now(timezones[key]).strftime('%H:%M')}"
+                for label, key in rows
+            ]
             await interaction.response.send_message(
-                f"Время:\nМСК: {msk_time}\nЕКБ: {ekb_time}\nNew York: {ny_time}"
+                embed=embeds.info(title="время", description="\n".join(lines), user=interaction.user)
             )
         except Exception as e:
             print(f"Time error: {e}")
-            await interaction.response.send_message("Ошибка при получении времени", ephemeral=True)
+            await interaction.response.send_message(
+                embed=embeds.err("не удалось получить время", user=interaction.user),
+                ephemeral=True,
+            )
 
     @app_commands.command(name="avatar", description="Показывает аватар пользователя")
     @app_commands.describe(member="Пользователь (по умолчанию - ты)")
     async def avatar(self, interaction: discord.Interaction, member: discord.Member = None):
-        if member is None:
-            member = interaction.user
-
+        member = member or interaction.user
         try:
-            avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
-            embed = discord.Embed(title=f"Аватар пользователя {member.name}", color=0x251530)
+            avatar_url = (member.avatar or member.default_avatar).url
+            embed = embeds.info(title=member.display_name, user=interaction.user)
             embed.set_image(url=avatar_url)
             await interaction.response.send_message(embed=embed)
         except Exception as e:
             print(f"Avatar error: {e}")
-            await interaction.response.send_message("Не удалось получить аватар", ephemeral=True)
+            await interaction.response.send_message(
+                embed=embeds.err("не удалось получить аватар", user=interaction.user),
+                ephemeral=True,
+            )
 
 
 async def setup(bot: commands.Bot):

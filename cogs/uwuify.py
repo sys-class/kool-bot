@@ -7,6 +7,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from services import embeds
+
 UWUIFIED_FILE = Path("uwuified.json")
 
 PROTECTED_USERS = {1130462413087592528}
@@ -96,7 +98,10 @@ class UwuifyCog(commands.Cog):
     @app_commands.guild_only()
     async def uwuify_cmd(self, interaction: discord.Interaction, member: discord.Member):
         if member.id in PROTECTED_USERS:
-            await interaction.response.send_message("Этого пользователя нельзя uwuify.", ephemeral=True)
+            await interaction.response.send_message(
+                embed=embeds.err("этого нельзя uwuify", user=interaction.user),
+                ephemeral=True,
+            )
             return
 
         guild_key = str(interaction.guild_id)
@@ -105,30 +110,29 @@ class UwuifyCog(commands.Cog):
         if member.id in users:
             users.discard(member.id)
             self._save()
-            await interaction.response.send_message(f"Феленидский акцент снят с {member.mention}")
+            await interaction.response.send_message(
+                embed=embeds.fun(description=f"акцент снят · {member.mention}", user=interaction.user)
+            )
         else:
             users.add(member.id)
             self._save()
-            await interaction.response.send_message(f"Феленидский акцент наложен на {member.mention}")
+            await interaction.response.send_message(
+                embed=embeds.fun(description=f"акцент наложен · {member.mention}", user=interaction.user)
+            )
 
     @uwuify_cmd.error
     async def uwuify_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.MissingPermissions):
-            await interaction.response.send_message(
-                "У вас недостаточно прав для использования этой команды.",
-                ephemeral=True
-            )
+            msg = "недостаточно прав"
         elif isinstance(error, app_commands.NoPrivateMessage):
-            await interaction.response.send_message(
-                "Эта команда работает только на сервере.",
-                ephemeral=True
-            )
+            msg = "только на сервере"
         else:
-            await interaction.response.send_message(
-                "Произошла ошибка при выполнении команды.",
-                ephemeral=True
-            )
+            msg = "что-то пошло не так"
             print(f"Uwuify error: {error}")
+        await interaction.response.send_message(
+            embed=embeds.err(msg, user=interaction.user),
+            ephemeral=True,
+        )
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):

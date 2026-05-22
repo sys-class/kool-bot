@@ -3,6 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from config import TOKEN, SOURCE_CHANNEL_1, SOURCE_CHANNEL_2, TARGET_VOICE_CHANNELS, ALLOWED_USERS
+from services import embeds
 from services.cooldown import CooldownManager
 from services.webhook import WebhookService
 
@@ -37,8 +38,12 @@ class CoolBot(commands.Bot):
                 return True
             if not self.command_cooldown.check_cooldown(interaction.user.id):
                 await interaction.response.send_message(
-                    f"Подожди {self.command_cooldown.cooldown_time} сек. перед следующей командой.",
-                    ephemeral=True
+                    embed=embeds.err(
+                        f"подожди **{self.command_cooldown.cooldown_time} сек**",
+                        title="кулдаун",
+                        user=interaction.user,
+                    ),
+                    ephemeral=True,
                 )
                 return False
             return True
