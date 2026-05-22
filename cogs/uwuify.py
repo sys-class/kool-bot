@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 from pathlib import Path
@@ -49,7 +50,7 @@ def _word_replacer(match: re.Match) -> str:
     return replacement
 
 
-_LETTER_PATTERN = re.compile("[" + re.escape("".join(LETTER_MAP.keys())) + "]")
+_LETTER_TRANSLATION = str.maketrans(LETTER_MAP)
 
 
 def felinid_accent(text: str) -> str:
@@ -59,7 +60,7 @@ def felinid_accent(text: str) -> str:
     result = []
     for i, part in enumerate(parts):
         part = _WORD_PATTERN.sub(_word_replacer, part)
-        part = _LETTER_PATTERN.sub(lambda m: LETTER_MAP[m.group(0)], part)
+        part = part.translate(_LETTER_TRANSLATION)
         result.append(part)
         if i < len(urls):
             result.append(urls[i])
@@ -67,23 +68,26 @@ def felinid_accent(text: str) -> str:
 
 
 class UwuifyCog(commands.Cog):
+    _EMPTY: frozenset[int] = frozenset()
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.uwuified: dict[str, list[int]] = {}
+        self.uwuified: dict[str, set[int]] = {}
         self._load()
 
     def _load(self):
         if UWUIFIED_FILE.exists():
             with open(UWUIFIED_FILE, "r", encoding="utf-8") as f:
                 raw = json.load(f)
-            self.uwuified = {k: list(v) for k, v in raw.items()}
+            self.uwuified = {k: set(v) for k, v in raw.items()}
 
     def _save(self):
+        serializable = {k: list(v) for k, v in self.uwuified.items()}
         with open(UWUIFIED_FILE, "w", encoding="utf-8") as f:
-            json.dump(self.uwuified, f)
+            json.dump(serializable, f, separators=(",", ":"))
 
     def is_uwuified(self, guild_id: int, user_id: int) -> bool:
-        return user_id in self.uwuified.get(str(guild_id), [])
+        return user_id in self.uwuified.get(str(guild_id), self._EMPTY)
 
     @app_commands.command(name="uwuify", description="Накладывает/снимает феленидский акцент с пользователя")
     @app_commands.describe(member="Пользователь для uwuify")
@@ -96,14 +100,14 @@ class UwuifyCog(commands.Cog):
             return
 
         guild_key = str(interaction.guild_id)
-        users = self.uwuified.setdefault(guild_key, [])
+        users = self.uwuified.setdefault(guild_key, set())
 
         if member.id in users:
-            users.remove(member.id)
+            users.discard(member.id)
             self._save()
             await interaction.response.send_message(f"Феленидский акцент снят с {member.mention}")
         else:
-            users.append(member.id)
+            users.add(member.id)
             self._save()
             await interaction.response.send_message(f"Феленидский акцент наложен на {member.mention}")
 
@@ -142,40 +146,34 @@ class UwuifyCog(commands.Cog):
         except discord.Forbidden:
             return
 
-        webhook = await self.bot.webhook_service.get_or_create_webhook(
-            message.channel, "uwuify"
-        )
-
         content = felinid_accent(message.content)[:2000] if message.content else None
 
-        files = []
-        for attachment in message.attachments:
-            try:
-                files.append(await attachment.to_file())
-            except Exception as e:
-                print(f"Uwuify attachment error: {e}")
+        files: list[discord.File] = []
+        if message.attachments:
+            results = await asyncio.gather(
+                *(a.to_file() for a in message.attachments),
+                return_exceptions=True,
+            )
+            for r in results:
+                if isinstance(r, discord.File):
+                    files.append(r)
+                else:
+                    print(f"Uwuify attachment error: {r}")
 
         if not content and not files:
             return
 
         try:
-            await webhook.send(
+            await self.bot.webhook_service._send(
+                message.channel,
+                "uwuify",
                 content=content,
                 username=message.author.display_name[:80],
-                avatar_url=message.author.avatar.url if message.author.avatar else None,
+                avatar_url=message.author.display_avatar.url,
                 files=files if files else discord.utils.MISSING,
             )
-        except discord.NotFound:
-            self.bot.webhook_service.invalidate(message.channel.id, "uwuify")
-            webhook = await self.bot.webhook_service.get_or_create_webhook(
-                message.channel, "uwuify"
-            )
-            await webhook.send(
-                content=content,
-                username=message.author.display_name[:80],
-                avatar_url=message.author.avatar.url if message.author.avatar else None,
-                files=files if files else discord.utils.MISSING,
-            )
+        except Exception as e:
+            print(f"Uwuify webhook error: {e}")
 
 
 async def setup(bot: commands.Bot):
