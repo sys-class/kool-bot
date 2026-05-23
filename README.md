@@ -15,3 +15,7 @@
 3.  **Финальный аккорд**
     > Rowarromwmrowormrmemromemowomrewowrwrrwarwr
     *(Это сакральная фраза, запускающая основную функцию бота. Произносить с чувством!)*
+
+
+# license
+the whole project is licensed under [AGPLv3](LICENSE-AGPLv3), although the original source code is licensed under MIT (see [MIT](https://raw.githubusercontent.com/mixed-soup/kool-bot/refs/heads/main/LICENSE))
