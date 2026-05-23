@@ -6,10 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 TOKEN = os.getenv("TOKEN", "")
-ALLOWED_USERS = [
-    1043834316620304394,
-    587208453018091538
-]  # дискорд юзер айди
+ALLOWED_USERS = [1043834316620304394, 587208453018091538]  # дискорд юзер айди
 
 TARGET_VOICE_CHANNELS = {
     1496231771602419772: [1507420233101475901],  # voice
