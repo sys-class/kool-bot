@@ -75,14 +75,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: notify start
-        uses: sarisia/actions-status-discord@v1
-        with:
-          webhook: ${{ secrets.DISCORD_WEBHOOK }}
-          status: "Pending"
-          title: "Deploy started"
-          description: "Deploying `${{ needs.build-and-push.outputs.image_tag }}` to prod"
-
       - name: deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -101,7 +93,7 @@ jobs:
             docker compose up -d
 
             sleep 30
-            if docker logs kool-bot --tail 100 2>&1 | grep -qE "(Logged in as|Bot is ready|on_ready|готов к работе)"; then
+            if docker logs kool-bot --tail 100 2>&1 | grep -qE "(connected to Gateway|Logged in as|Bot is ready|on_ready|готов к работе)"; then
               echo "healthcheck passed"
               docker image prune -f
             else
