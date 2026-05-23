@@ -18,11 +18,16 @@ MAX_SECONDS = 60 * 60 * 24 * 30  # 30 дней
 
 _DURATION_TOKEN = re.compile(r"(\d+)\s*([smhdwу]|сек|мин|ч|д|нед)", re.IGNORECASE)
 _UNIT_SECONDS = {
-    "s": 1, "сек": 1,
-    "m": 60, "мин": 60,
-    "h": 3600, "ч": 3600,
-    "d": 86400, "д": 86400,
-    "w": 604800, "нед": 604800,
+    "s": 1,
+    "сек": 1,
+    "m": 60,
+    "мин": 60,
+    "h": 3600,
+    "ч": 3600,
+    "d": 86400,
+    "д": 86400,
+    "w": 604800,
+    "нед": 604800,
     "у": 1,  # ignore stray
 }
 
@@ -100,7 +105,9 @@ class RemindersCog(commands.Cog):
         embed.set_footer(text="remind")
         user = self.bot.get_user(r["user_id"])
         try:
-            channel = self.bot.get_channel(r["channel_id"]) or await self.bot.fetch_channel(r["channel_id"])
+            channel = self.bot.get_channel(
+                r["channel_id"]
+            ) or await self.bot.fetch_channel(r["channel_id"])
         except Exception:
             channel = None
         content = f"<@{r['user_id']}>"
@@ -117,43 +124,57 @@ class RemindersCog(commands.Cog):
                 print(f"Remind DM fallback error: {e}")
 
     @app_commands.command(name="remind", description="Напомнить через время")
-    @app_commands.describe(when="через · `30m` `2h` `1d` `1h30m`", text="текст напоминания")
+    @app_commands.describe(
+        when="через · `30m` `2h` `1d` `1h30m`", text="текст напоминания"
+    )
     async def remind(self, interaction: discord.Interaction, when: str, text: str):
         seconds = _parse_duration(when)
         if seconds is None:
             await interaction.response.send_message(
-                embed=embeds.err("формат · `30m` `2h` `1d` `1h30m`", user=interaction.user),
+                embed=embeds.err(
+                    "формат · `30m` `2h` `1d` `1h30m`", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
         if seconds < MIN_SECONDS or seconds > MAX_SECONDS:
             await interaction.response.send_message(
-                embed=embeds.err(f"границы · от 10 сек до 30 дней", user=interaction.user),
+                embed=embeds.err(
+                    "границы · от 10 сек до 30 дней", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
         if len(text) > MAX_TEXT:
             await interaction.response.send_message(
-                embed=embeds.err(f"текст · максимум {MAX_TEXT} символов", user=interaction.user),
+                embed=embeds.err(
+                    f"текст · максимум {MAX_TEXT} символов", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
 
-        user_count = sum(1 for r in self.reminders if r["user_id"] == interaction.user.id)
+        user_count = sum(
+            1 for r in self.reminders if r["user_id"] == interaction.user.id
+        )
         if user_count >= MAX_PER_USER:
             await interaction.response.send_message(
-                embed=embeds.err(f"лимит · {MAX_PER_USER} напоминаний", user=interaction.user),
+                embed=embeds.err(
+                    f"лимит · {MAX_PER_USER} напоминаний", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
 
-        self.reminders.append({
-            "id": uuid.uuid4().hex[:8],
-            "user_id": interaction.user.id,
-            "channel_id": interaction.channel_id,
-            "due": time.time() + seconds,
-            "text": text,
-        })
+        self.reminders.append(
+            {
+                "id": uuid.uuid4().hex[:8],
+                "user_id": interaction.user.id,
+                "channel_id": interaction.channel_id,
+                "due": time.time() + seconds,
+                "text": text,
+            }
+        )
         self._save()
 
         await interaction.response.send_message(
@@ -183,7 +204,9 @@ class RemindersCog(commands.Cog):
             for r in mine
         ]
         await interaction.response.send_message(
-            embed=embeds.info(title="напоминания", description="\n".join(lines), user=interaction.user),
+            embed=embeds.info(
+                title="напоминания", description="\n".join(lines), user=interaction.user
+            ),
             ephemeral=True,
         )
 
@@ -192,7 +215,8 @@ class RemindersCog(commands.Cog):
     async def forget(self, interaction: discord.Interaction, reminder_id: str):
         before = len(self.reminders)
         self.reminders = [
-            r for r in self.reminders
+            r
+            for r in self.reminders
             if not (r["id"] == reminder_id and r["user_id"] == interaction.user.id)
         ]
         if len(self.reminders) == before:
@@ -203,7 +227,9 @@ class RemindersCog(commands.Cog):
             return
         self._save()
         await interaction.response.send_message(
-            embed=embeds.ok(description=f"удалено · `{reminder_id}`", user=interaction.user),
+            embed=embeds.ok(
+                description=f"удалено · `{reminder_id}`", user=interaction.user
+            ),
             ephemeral=True,
         )
 

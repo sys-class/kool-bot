@@ -16,7 +16,9 @@ class FunCog(commands.Cog):
 
     @app_commands.command(name="furryrate", description="Показывает процент фуррь")
     @app_commands.describe(member="Пользователь для оценки (по умолчанию - ты)")
-    async def furryrate(self, interaction: discord.Interaction, member: discord.Member = None):
+    async def furryrate(
+        self, interaction: discord.Interaction, member: discord.Member = None
+    ):
         member = member or interaction.user
         rate = random.Random(member.id + 42).randint(0, 100)
 
@@ -42,7 +44,9 @@ class FunCog(commands.Cog):
 
     @app_commands.command(name="femboyrate", description="Показывает процент фембой")
     @app_commands.describe(member="Пользователь для оценки (по умолчанию - ты)")
-    async def femboyrate(self, interaction: discord.Interaction, member: discord.Member = None):
+    async def femboyrate(
+        self, interaction: discord.Interaction, member: discord.Member = None
+    ):
         member = member or interaction.user
         rate = random.Random(member.id + 99).randint(0, 100)
 
@@ -67,14 +71,31 @@ class FunCog(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     EIGHTBALL_ANSWERS = [
-        "да", "нет", "определённо да", "скорее всего", "не уверен",
-        "даже не думай", "однозначно нет", "спроси позже", "звёзды говорят да",
-        "звёзды говорят нет", "возможно", "ни за что", "абсолютно",
-        "не рассчитывай на это", "без сомнений", "мой ответ — нет",
-        "шансы хорошие", "весьма сомнительно", "да, но не сейчас", "нет, и не проси",
+        "да",
+        "нет",
+        "определённо да",
+        "скорее всего",
+        "не уверен",
+        "даже не думай",
+        "однозначно нет",
+        "спроси позже",
+        "звёзды говорят да",
+        "звёзды говорят нет",
+        "возможно",
+        "ни за что",
+        "абсолютно",
+        "не рассчитывай на это",
+        "без сомнений",
+        "мой ответ — нет",
+        "шансы хорошие",
+        "весьма сомнительно",
+        "да, но не сейчас",
+        "нет, и не проси",
     ]
 
-    @app_commands.command(name="8ball", description="Магический шар отвечает на твой вопрос")
+    @app_commands.command(
+        name="8ball", description="Магический шар отвечает на твой вопрос"
+    )
     @app_commands.describe(question="Твой вопрос")
     async def eightball(self, interaction: discord.Interaction, question: str):
         answer = random.choice(self.EIGHTBALL_ANSWERS)
@@ -91,14 +112,18 @@ class FunCog(commands.Cog):
         m = _DICE_RE.match(roll)
         if not m:
             await interaction.response.send_message(
-                embed=embeds.err("формат · `NdM` · например `2d6`", user=interaction.user),
+                embed=embeds.err(
+                    "формат · `NdM` · например `2d6`", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
         n, sides = int(m.group(1)), int(m.group(2))
         if n < 1 or sides < 2 or n > 20 or sides > 100:
             await interaction.response.send_message(
-                embed=embeds.err("границы · `N` 1–20 · `M` 2–100", user=interaction.user),
+                embed=embeds.err(
+                    "границы · `N` 1–20 · `M` 2–100", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
@@ -107,7 +132,9 @@ class FunCog(commands.Cog):
         rolls_str = " · ".join(f"`{r}`" for r in rolls)
         desc = f"{rolls_str}\n\n**{total}**" if n > 1 else f"**{total}**"
         await interaction.response.send_message(
-            embed=embeds.fun(title=f"{n}d{sides}", description=desc, user=interaction.user)
+            embed=embeds.fun(
+                title=f"{n}d{sides}", description=desc, user=interaction.user
+            )
         )
 
     @app_commands.command(name="choose", description="Выбирает один вариант из списка")
@@ -116,7 +143,9 @@ class FunCog(commands.Cog):
         items = [x.strip() for x in options.split(",") if x.strip()]
         if len(items) < 2:
             await interaction.response.send_message(
-                embed=embeds.err("нужно минимум 2 варианта через запятую", user=interaction.user),
+                embed=embeds.err(
+                    "нужно минимум 2 варианта через запятую", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
@@ -124,7 +153,9 @@ class FunCog(commands.Cog):
             items = items[:20]
         picked = random.choice(items)
         await interaction.response.send_message(
-            embed=embeds.fun(title="выбор", description=f"**{picked}**", user=interaction.user)
+            embed=embeds.fun(
+                title="выбор", description=f"**{picked}**", user=interaction.user
+            )
         )
 
     @app_commands.command(name="coinflip", description="Подбрасывает монетку")

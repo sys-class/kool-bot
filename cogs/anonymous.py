@@ -10,7 +10,9 @@ class AnonymousCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="anonsay", description="Анонимно отправляет сообщение в канал")
+    @app_commands.command(
+        name="anonsay", description="Анонимно отправляет сообщение в канал"
+    )
     @app_commands.describe(message="Текст сообщения")
     async def anonsay(self, interaction: discord.Interaction, message: str):
         if interaction.guild is not None:
@@ -35,7 +37,9 @@ class AnonymousCog(commands.Cog):
             return
 
         try:
-            webhook = await self.bot.webhook_service.get_or_create_webhook(channel, "prikolbot-wh")
+            webhook = await self.bot.webhook_service.get_or_create_webhook(
+                channel, "prikolbot-wh"
+            )
             await webhook.send(
                 content=message[:2000],
                 username=self.bot.user.name,

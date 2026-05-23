@@ -20,7 +20,9 @@ def _stamp(embed: discord.Embed, user: discord.abc.User | None) -> discord.Embed
     return embed
 
 
-def _build(color: int, title: str | None, description: str | None, user) -> discord.Embed:
+def _build(
+    color: int, title: str | None, description: str | None, user
+) -> discord.Embed:
     embed = discord.Embed(color=color)
     if title is not None:
         embed.title = title.lower()
@@ -29,7 +31,9 @@ def _build(color: int, title: str | None, description: str | None, user) -> disc
     return _stamp(embed, user)
 
 
-def ok(title: str | None = None, description: str | None = None, *, user=None) -> discord.Embed:
+def ok(
+    title: str | None = None, description: str | None = None, *, user=None
+) -> discord.Embed:
     return _build(ACCENT, title, description, user)
 
 
@@ -37,19 +41,27 @@ def err(description: str, *, title: str = "ошибка", user=None) -> discord.
     return _build(ERROR, title, description, user)
 
 
-def info(title: str | None = None, description: str | None = None, *, user=None) -> discord.Embed:
+def info(
+    title: str | None = None, description: str | None = None, *, user=None
+) -> discord.Embed:
     return _build(ACCENT, title, description, user)
 
 
-def fun(title: str | None = None, description: str | None = None, *, user=None) -> discord.Embed:
+def fun(
+    title: str | None = None, description: str | None = None, *, user=None
+) -> discord.Embed:
     return _build(ACCENT, title, description, user)
 
 
-def mod(title: str | None = None, description: str | None = None, *, user=None) -> discord.Embed:
+def mod(
+    title: str | None = None, description: str | None = None, *, user=None
+) -> discord.Embed:
     return _build(ACCENT, title, description, user)
 
 
-def voice(title: str | None = None, description: str | None = None, *, user=None) -> discord.Embed:
+def voice(
+    title: str | None = None, description: str | None = None, *, user=None
+) -> discord.Embed:
     return _build(ACCENT, title, description, user)
 
 

@@ -1,8 +1,13 @@
 import discord
-from discord import app_commands
 from discord.ext import commands
 
-from config import TOKEN, SOURCE_CHANNEL_1, SOURCE_CHANNEL_2, TARGET_VOICE_CHANNELS, ALLOWED_USERS
+from config import (
+    TOKEN,
+    SOURCE_CHANNEL_1,
+    SOURCE_CHANNEL_2,
+    TARGET_VOICE_CHANNELS,
+    ALLOWED_USERS,
+)
 from services import embeds
 from services.cooldown import CooldownManager
 from services.webhook import WebhookService
@@ -58,11 +63,12 @@ class CoolBot(commands.Bot):
         print(f"{self.user.name}: Mrrp~\nMeow! ^w^")
 
         await self.change_presence(
-            status=discord.Status.idle,
-            activity=discord.Game("Mrrp~")
+            status=discord.Status.idle, activity=discord.Game("Mrrp~")
         )
 
-        print(f"Загружено целевых войс-каналов для {len(TARGET_VOICE_CHANNELS)} серверов:")
+        print(
+            f"Загружено целевых войс-каналов для {len(TARGET_VOICE_CHANNELS)} серверов:"
+        )
         for guild_id, channels in TARGET_VOICE_CHANNELS.items():
             guild = self.get_guild(guild_id)
             guild_name = guild.name if guild else f"Unknown Guild ({guild_id})"
@@ -96,7 +102,9 @@ class CoolBot(commands.Bot):
                 await self.webhook_service.send_webhook_message(target_channel, message)
 
         if message.content.startswith("$"):
-            await message.channel.send("Бот перешёл на слэш-команды. Используй `/` вместо `$`.", delete_after=5)
+            await message.channel.send(
+                "Бот перешёл на слэш-команды. Используй `/` вместо `$`.", delete_after=5
+            )
 
     async def on_disconnect(self):
         print("Бот отключен")

@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: install deps
+        run: |
+          python -m pip install --upgrade pip --disable-pip-version-check
+          pip install -r requirements.txt
+          pip install ruff mypy
+
+      - name: lint
+        run: ruff check .
+
+      - name: format check
+        if: always()
+        run: ruff format --check .
+
+      - name: type check
+        if: always()
+        run: mypy --ignore-missing-imports . || true
+
+      # TODO: раскомментировать когда появится папка tests/
+      #
+      # - name: tests
+      #   run: |
+      #     pip install pytest pytest-cov
+      #     pytest tests/ -v --cov=. --cov-report=xml
+      #
+      # - name: upload coverage
+      #   if: matrix.python-version == '3.13' && success()
+      #   uses: codecov/codecov-action@v5
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     files: ./coverage.xml
+      #     fail_ci_if_error: false

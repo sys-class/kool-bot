@@ -45,13 +45,17 @@ class VoiceCog(commands.Cog):
                     channel = self.bot.get_channel(SOURCE_CHANNEL_1)
                     if channel:
                         try:
-                            await channel.send(f"Пользователь {member.name} атакует войсы!!")
+                            await channel.send(
+                                f"Пользователь {member.name} атакует войсы!!"
+                            )
                         except Exception as e:
                             print(f"Warning error: {e}")
                     return
 
                 category = after.channel.category
-                voice_channel = await self.create_custom_voice_channel(member.guild, category, member)
+                voice_channel = await self.create_custom_voice_channel(
+                    member.guild, category, member
+                )
 
                 if voice_channel:
                     try:
@@ -62,7 +66,7 @@ class VoiceCog(commands.Cog):
                         print(f"Move error: {e}")
                         try:
                             await voice_channel.delete()
-                        except:
+                        except discord.HTTPException:
                             pass
 
         if before.channel and before.channel.id in self.bot.bot_created_channels:
@@ -73,22 +77,21 @@ class VoiceCog(commands.Cog):
         try:
             overwrites = {
                 guild.default_role: discord.PermissionOverwrite(
-                    connect=True,
-                    view_channel=True
+                    connect=True, view_channel=True
                 ),
                 creator: discord.PermissionOverwrite(
                     connect=True,
                     view_channel=True,
                     mute_members=True,
-                    manage_channels=True
-                )
+                    manage_channels=True,
+                ),
             }
 
             voice_channel = await guild.create_voice_channel(
                 name=f"/home/{creator.name}"[:100],
                 category=category,
                 overwrites=overwrites,
-                reason="Автоматическое создание домашнего канала"
+                reason="Автоматическое создание домашнего канала",
             )
 
             return voice_channel
@@ -136,7 +139,9 @@ class VoiceCog(commands.Cog):
         if cleanup_tasks:
             await asyncio.gather(*cleanup_tasks, return_exceptions=True)
 
-    @app_commands.command(name="targets", description="Показывает целевые войс-каналы на сервере")
+    @app_commands.command(
+        name="targets", description="Показывает целевые войс-каналы на сервере"
+    )
     async def show_targets(self, interaction: discord.Interaction):
         """Показывает целевые войс-каналы на этом сервере"""
         guild_id = interaction.guild_id
@@ -155,14 +160,22 @@ class VoiceCog(commands.Cog):
             lines.append(f"`{i:02d}`  {name}")
 
         await interaction.response.send_message(
-            embed=embeds.voice(title="целевые каналы", description="\n".join(lines), user=interaction.user)
+            embed=embeds.voice(
+                title="целевые каналы",
+                description="\n".join(lines),
+                user=interaction.user,
+            )
         )
 
-    @app_commands.command(name="addtarget", description="Добавляет войс-канал в целевые")
+    @app_commands.command(
+        name="addtarget", description="Добавляет войс-канал в целевые"
+    )
     @app_commands.describe(channel="Голосовой канал для добавления")
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.default_permissions(administrator=True)
-    async def add_target(self, interaction: discord.Interaction, channel: discord.VoiceChannel):
+    async def add_target(
+        self, interaction: discord.Interaction, channel: discord.VoiceChannel
+    ):
         """Добавляет войс-канал в целевые"""
         guild_id = interaction.guild_id
         channel_id = channel.id
@@ -172,18 +185,24 @@ class VoiceCog(commands.Cog):
 
         if channel_id in TARGET_VOICE_CHANNELS[guild_id]:
             await interaction.response.send_message(
-                embed=embeds.err(f"{channel.mention} уже в целевых", user=interaction.user),
+                embed=embeds.err(
+                    f"{channel.mention} уже в целевых", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
 
         TARGET_VOICE_CHANNELS[guild_id].append(channel_id)
         await interaction.response.send_message(
-            embed=embeds.ok(description=f"добавлен · {channel.mention}", user=interaction.user)
+            embed=embeds.ok(
+                description=f"добавлен · {channel.mention}", user=interaction.user
+            )
         )
 
     @add_target.error
-    async def add_target_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+    async def add_target_error(
+        self, interaction: discord.Interaction, error: app_commands.AppCommandError
+    ):
         if isinstance(error, app_commands.MissingPermissions):
             msg = "недостаточно прав"
         else:
@@ -194,11 +213,15 @@ class VoiceCog(commands.Cog):
             ephemeral=True,
         )
 
-    @app_commands.command(name="removetarget", description="Удаляет войс-канал из целевых")
+    @app_commands.command(
+        name="removetarget", description="Удаляет войс-канал из целевых"
+    )
     @app_commands.describe(channel="Голосовой канал для удаления")
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.default_permissions(administrator=True)
-    async def remove_target(self, interaction: discord.Interaction, channel: discord.VoiceChannel):
+    async def remove_target(
+        self, interaction: discord.Interaction, channel: discord.VoiceChannel
+    ):
         """Удаляет войс-канал из целевых"""
         guild_id = interaction.guild_id
         channel_id = channel.id
@@ -222,11 +245,15 @@ class VoiceCog(commands.Cog):
             del TARGET_VOICE_CHANNELS[guild_id]
 
         await interaction.response.send_message(
-            embed=embeds.ok(description=f"удалён · {channel.mention}", user=interaction.user)
+            embed=embeds.ok(
+                description=f"удалён · {channel.mention}", user=interaction.user
+            )
         )
 
     @remove_target.error
-    async def remove_target_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+    async def remove_target_error(
+        self, interaction: discord.Interaction, error: app_commands.AppCommandError
+    ):
         if isinstance(error, app_commands.MissingPermissions):
             msg = "недостаточно прав"
         else:
