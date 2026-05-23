@@ -17,3 +17,8 @@ class CooldownManager:
 
         self.cooldowns[user_id] = now
         return True
+
+    def remaining(self, user_id: int) -> float:
+        last = self.cooldowns.get(user_id, 0.0)
+        left = self.cooldown_time - (time.monotonic() - last)
+        return max(0.0, left)
