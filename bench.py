@@ -5,14 +5,11 @@ before/after numbers. Does not connect to Discord.
 """
 
 import cProfile
-import json
 import pstats
-import random
 import sys
 import tempfile
 import time
 from pathlib import Path
-from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).parent))
 

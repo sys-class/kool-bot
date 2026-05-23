@@ -66,7 +66,7 @@ class VoiceCog(commands.Cog):
                         print(f"Move error: {e}")
                         try:
                             await voice_channel.delete()
-                        except:
+                        except discord.HTTPException:
                             pass
 
         if before.channel and before.channel.id in self.bot.bot_created_channels:

@@ -140,7 +140,7 @@ class RemindersCog(commands.Cog):
         if seconds < MIN_SECONDS or seconds > MAX_SECONDS:
             await interaction.response.send_message(
                 embed=embeds.err(
-                    f"границы · от 10 сек до 30 дней", user=interaction.user
+                    "границы · от 10 сек до 30 дней", user=interaction.user
                 ),
                 ephemeral=True,
             )
