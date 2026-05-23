@@ -55,7 +55,9 @@ class SocialCog(commands.Cog):
     def get_mood(self, guild_id: int, user_id: int) -> str | None:
         return self.moods.get(str(guild_id), {}).get(str(user_id))
 
-    @app_commands.command(name="mood", description="Установить настроение (пусто — сбросить)")
+    @app_commands.command(
+        name="mood", description="Установить настроение (пусто — сбросить)"
+    )
     @app_commands.describe(text="одно-два слова · оставь пустым чтобы сбросить")
     @app_commands.guild_only()
     async def mood(self, interaction: discord.Interaction, text: str = ""):
@@ -70,14 +72,18 @@ class SocialCog(commands.Cog):
                     del self.moods[guild_key]
                 _save(self.moods)
             await interaction.response.send_message(
-                embed=embeds.ok(description="настроение сброшено", user=interaction.user),
+                embed=embeds.ok(
+                    description="настроение сброшено", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
 
         if len(text) > MAX_MOOD_LEN:
             await interaction.response.send_message(
-                embed=embeds.err(f"максимум {MAX_MOOD_LEN} символов", user=interaction.user),
+                embed=embeds.err(
+                    f"максимум {MAX_MOOD_LEN} символов", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
@@ -85,20 +91,26 @@ class SocialCog(commands.Cog):
         self.moods.setdefault(guild_key, {})[user_key] = text
         _save(self.moods)
         await interaction.response.send_message(
-            embed=embeds.ok(description=f"настроение · **{text}**", user=interaction.user),
+            embed=embeds.ok(
+                description=f"настроение · **{text}**", user=interaction.user
+            ),
             ephemeral=True,
         )
 
     @app_commands.command(name="whois", description="Карточка пользователя")
     @app_commands.describe(member="пользователь · по умолчанию ты")
     @app_commands.guild_only()
-    async def whois(self, interaction: discord.Interaction, member: discord.Member = None):
+    async def whois(
+        self, interaction: discord.Interaction, member: discord.Member = None
+    ):
         member = member or interaction.user
         lines = [
             f"`создан    ` {_fmt_date(member.created_at)} · {_relative(member.created_at)}",
         ]
         if member.joined_at:
-            lines.append(f"`вошёл     ` {_fmt_date(member.joined_at)} · {_relative(member.joined_at)}")
+            lines.append(
+                f"`вошёл     ` {_fmt_date(member.joined_at)} · {_relative(member.joined_at)}"
+            )
 
         top = member.top_role
         if top and top.name != "@everyone":

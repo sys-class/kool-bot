@@ -33,7 +33,9 @@ class UtilityCog(commands.Cog):
             cog = getattr(cmd, "binding", None)
             cog_name = type(cog).__name__ if cog else None
             section = self.COG_DISPLAY.get(cog_name, "другое")
-            sections.setdefault(section, []).append(f"`/{cmd.name}` — {cmd.description.lower()}")
+            sections.setdefault(section, []).append(
+                f"`/{cmd.name}` — {cmd.description.lower()}"
+            )
 
         for section_name in sorted(sections):
             embed.add_field(
@@ -50,7 +52,9 @@ class UtilityCog(commands.Cog):
     async def say(self, interaction: discord.Interaction, text: str):
         await interaction.response.send_message(text)
 
-    @app_commands.command(name="time", description="Показывает текущее время в разных часовых поясах")
+    @app_commands.command(
+        name="time", description="Показывает текущее время в разных часовых поясах"
+    )
     async def time(self, interaction: discord.Interaction):
         try:
             rows = [
@@ -63,7 +67,9 @@ class UtilityCog(commands.Cog):
                 for label, key in rows
             ]
             await interaction.response.send_message(
-                embed=embeds.info(title="время", description="\n".join(lines), user=interaction.user)
+                embed=embeds.info(
+                    title="время", description="\n".join(lines), user=interaction.user
+                )
             )
         except Exception as e:
             print(f"Time error: {e}")
@@ -74,7 +80,9 @@ class UtilityCog(commands.Cog):
 
     @app_commands.command(name="avatar", description="Показывает аватар пользователя")
     @app_commands.describe(member="Пользователь (по умолчанию - ты)")
-    async def avatar(self, interaction: discord.Interaction, member: discord.Member = None):
+    async def avatar(
+        self, interaction: discord.Interaction, member: discord.Member = None
+    ):
         member = member or interaction.user
         try:
             avatar_url = (member.avatar or member.default_avatar).url

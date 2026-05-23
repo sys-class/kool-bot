@@ -91,12 +91,17 @@ class UwuifyCog(commands.Cog):
     def is_uwuified(self, guild_id: int, user_id: int) -> bool:
         return user_id in self.uwuified.get(str(guild_id), self._EMPTY)
 
-    @app_commands.command(name="uwuify", description="Накладывает/снимает феленидский акцент с пользователя")
+    @app_commands.command(
+        name="uwuify",
+        description="Накладывает/снимает феленидский акцент с пользователя",
+    )
     @app_commands.describe(member="Пользователь для uwuify")
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.default_permissions(administrator=True)
     @app_commands.guild_only()
-    async def uwuify_cmd(self, interaction: discord.Interaction, member: discord.Member):
+    async def uwuify_cmd(
+        self, interaction: discord.Interaction, member: discord.Member
+    ):
         if member.id in PROTECTED_USERS:
             await interaction.response.send_message(
                 embed=embeds.err("этого нельзя uwuify", user=interaction.user),
@@ -111,17 +116,24 @@ class UwuifyCog(commands.Cog):
             users.discard(member.id)
             self._save()
             await interaction.response.send_message(
-                embed=embeds.fun(description=f"акцент снят · {member.mention}", user=interaction.user)
+                embed=embeds.fun(
+                    description=f"акцент снят · {member.mention}", user=interaction.user
+                )
             )
         else:
             users.add(member.id)
             self._save()
             await interaction.response.send_message(
-                embed=embeds.fun(description=f"акцент наложен · {member.mention}", user=interaction.user)
+                embed=embeds.fun(
+                    description=f"акцент наложен · {member.mention}",
+                    user=interaction.user,
+                )
             )
 
     @uwuify_cmd.error
-    async def uwuify_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+    async def uwuify_error(
+        self, interaction: discord.Interaction, error: app_commands.AppCommandError
+    ):
         if isinstance(error, app_commands.MissingPermissions):
             msg = "недостаточно прав"
         elif isinstance(error, app_commands.NoPrivateMessage):

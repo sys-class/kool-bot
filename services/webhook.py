@@ -7,7 +7,9 @@ class WebhookService:
     def __init__(self):
         self.cache: dict[str, discord.Webhook] = {}
 
-    async def get_or_create_webhook(self, channel: discord.TextChannel, name: str) -> discord.Webhook:
+    async def get_or_create_webhook(
+        self, channel: discord.TextChannel, name: str
+    ) -> discord.Webhook:
         webhook_key = f"{channel.id}_{name}"
         webhook = self.cache.get(webhook_key)
 
@@ -37,7 +39,9 @@ class WebhookService:
             webhook = await self.get_or_create_webhook(channel, name)
             await webhook.send(**kwargs)
 
-    async def send_webhook_message(self, target_channel: discord.TextChannel, original_message: discord.Message):
+    async def send_webhook_message(
+        self, target_channel: discord.TextChannel, original_message: discord.Message
+    ):
         """Отправка сообщений через вебхук с сохранением автора"""
         content = original_message.content[:2000] if original_message.content else None
 

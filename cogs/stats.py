@@ -29,7 +29,12 @@ def _sparkline(values: list[int]) -> str:
     if peak == 0:
         return SPARK_CHARS[0] * len(values)
     step = peak / (len(SPARK_CHARS) - 1)
-    return "".join(SPARK_CHARS[min(len(SPARK_CHARS) - 1, int(v / step))] if step else SPARK_CHARS[0] for v in values)
+    return "".join(
+        SPARK_CHARS[min(len(SPARK_CHARS) - 1, int(v / step))]
+        if step
+        else SPARK_CHARS[0]
+        for v in values
+    )
 
 
 class StatsCog(commands.Cog):
@@ -87,19 +92,25 @@ class StatsCog(commands.Cog):
         cid = str(message.channel.id)
         hour = _hour_key(_now_hour())
 
-        guild = self.data.setdefault("guilds", {}).setdefault(gid, {"hours": {}, "channels": {}})
+        guild = self.data.setdefault("guilds", {}).setdefault(
+            gid, {"hours": {}, "channels": {}}
+        )
         guild["hours"][hour] = guild["hours"].get(hour, 0) + 1
         guild["channels"].setdefault(hour, {})
         guild["channels"][hour][cid] = guild["channels"][hour].get(cid, 0) + 1
         self.dirty = True
 
-    @app_commands.command(name="stats", description="Пульс сервера за последние сутки и неделю")
+    @app_commands.command(
+        name="stats", description="Пульс сервера за последние сутки и неделю"
+    )
     @app_commands.guild_only()
     async def stats(self, interaction: discord.Interaction):
         guild = self.data.get("guilds", {}).get(str(interaction.guild_id))
         if not guild or not guild.get("hours"):
             await interaction.response.send_message(
-                embed=embeds.info(description="данных пока нет · подожди", user=interaction.user),
+                embed=embeds.info(
+                    description="данных пока нет · подожди", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
@@ -146,7 +157,9 @@ class StatsCog(commands.Cog):
             desc += "\n`топ каналы`\n" + "\n".join(top_lines)
 
         await interaction.response.send_message(
-            embed=embeds.info(title="пульс сервера", description=desc, user=interaction.user)
+            embed=embeds.info(
+                title="пульс сервера", description=desc, user=interaction.user
+            )
         )
 
 

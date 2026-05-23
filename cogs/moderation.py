@@ -10,14 +10,18 @@ class ModerationCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="clear", description="Удаляет указанное количество сообщений")
+    @app_commands.command(
+        name="clear", description="Удаляет указанное количество сообщений"
+    )
     @app_commands.describe(amount="Количество сообщений для удаления (по умолчанию 10)")
     @app_commands.checks.has_permissions(manage_messages=True)
     @app_commands.default_permissions(manage_messages=True)
     async def clear(self, interaction: discord.Interaction, amount: int = 10):
         if amount <= 0:
             await interaction.response.send_message(
-                embed=embeds.err("количество должно быть больше нуля", user=interaction.user),
+                embed=embeds.err(
+                    "количество должно быть больше нуля", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
@@ -35,7 +39,9 @@ class ModerationCog(commands.Cog):
             )
         except discord.errors.Forbidden:
             await interaction.followup.send(
-                embed=embeds.err("у бота нет прав в этом канале", user=interaction.user),
+                embed=embeds.err(
+                    "у бота нет прав в этом канале", user=interaction.user
+                ),
                 ephemeral=True,
             )
         except Exception as e:
@@ -46,7 +52,9 @@ class ModerationCog(commands.Cog):
             )
 
     @clear.error
-    async def clear_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+    async def clear_error(
+        self, interaction: discord.Interaction, error: app_commands.AppCommandError
+    ):
         if isinstance(error, app_commands.MissingPermissions):
             msg = "недостаточно прав"
         else:
@@ -57,10 +65,14 @@ class ModerationCog(commands.Cog):
             ephemeral=True,
         )
 
-    @app_commands.command(name="disconnect", description="Отключает всех участников из войс-канала")
+    @app_commands.command(
+        name="disconnect", description="Отключает всех участников из войс-канала"
+    )
     @app_commands.describe(channel="Голосовой канал для отключения участников")
     @app_commands.guild_only()
-    async def disconnect(self, interaction: discord.Interaction, channel: discord.VoiceChannel):
+    async def disconnect(
+        self, interaction: discord.Interaction, channel: discord.VoiceChannel
+    ):
         if interaction.user.id not in ALLOWED_USERS:
             await interaction.response.send_message(
                 embed=embeds.err("только для админов", user=interaction.user),
@@ -70,7 +82,9 @@ class ModerationCog(commands.Cog):
 
         if not channel.members:
             await interaction.response.send_message(
-                embed=embeds.err(f"в {channel.mention} никого нет", user=interaction.user),
+                embed=embeds.err(
+                    f"в {channel.mention} никого нет", user=interaction.user
+                ),
                 ephemeral=True,
             )
             return
