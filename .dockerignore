@@ -1,0 +1,15 @@
+.git
+.github/
+tests/
+bench.py
+.env*
+__pycache__/
+*.pyc
+*.pyo
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.vscode/
+.idea/
+*.md
+LICENSE*

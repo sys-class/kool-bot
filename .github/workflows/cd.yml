@@ -1,0 +1,133 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (default: latest commit SHA)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: cd-deploy
+  cancel-in-progress: false
+
+jobs:
+  wait-for-ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push'
+    steps:
+      - name: wait for CI workflow
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'test (3.13)'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+
+  build-and-push:
+    needs: wait-for-ci
+    if: always() && (needs.wait-for-ci.result == 'success' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: determine tag
+        id: meta
+        env:
+          INPUT_TAG: ${{ inputs.image_tag }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ -n "$INPUT_TAG" ]; then
+            echo "tag=$INPUT_TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=$SHA" >> "$GITHUB_OUTPUT"
+          fi
+      - name: build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/sys-class/kool-bot:latest
+            ghcr.io/sys-class/kool-bot:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: notify start
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          status: "Pending"
+          title: "Deploy started"
+          description: "Deploying `${{ needs.build-and-push.outputs.image_tag }}` to prod"
+
+      - name: deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          script: |
+            set -e
+            cd /opt/kool-bot
+
+            CURRENT_IMAGE=$(docker inspect kool-bot --format='{{.Config.Image}}' 2>/dev/null || echo "")
+            echo "$CURRENT_IMAGE" > .last-known-good
+
+            docker compose pull
+            docker compose up -d
+
+            sleep 30
+            if docker logs kool-bot --tail 100 2>&1 | grep -qE "(Logged in as|Bot is ready|on_ready|готов к работе)"; then
+              echo "healthcheck passed"
+              docker image prune -f
+            else
+              echo "healthcheck failed, rolling back"
+              if [ -n "$CURRENT_IMAGE" ]; then
+                docker compose down
+                sed -i "s|image: .*|image: $CURRENT_IMAGE|" docker-compose.yml
+                docker compose up -d
+              fi
+              exit 1
+            fi
+
+      - name: notify success
+        if: success()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          status: "Success"
+          title: "Deploy succeeded"
+          description: "`${{ needs.build-and-push.outputs.image_tag }}` is live"
+
+      - name: notify failure
+        if: failure()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          status: "Failure"
+          title: "Deploy failed"
+          description: "Rolled back to previous version. Check logs."
