@@ -158,6 +158,16 @@ class FunCog(commands.Cog):
             )
         )
 
+    @app_commands.command(name="ping", description="Проверяет задержку бота")
+    async def ping(self, interaction: discord.Interaction):
+        latency_ms = round(self.bot.latency * 1000)
+        embed = embeds.fun(
+            title="понг",
+            description=f"**{latency_ms} ms**",
+            user=interaction.user,
+        )
+        await interaction.response.send_message(embed=embed)
+
     @app_commands.command(name="coinflip", description="Подбрасывает монетку")
     async def coinflip(self, interaction: discord.Interaction):
         result = random.choice(["орёл", "решка"])
