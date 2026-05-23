@@ -61,6 +61,7 @@ class CoolBot(commands.Bot):
     async def on_ready(self):
         print(f"Login: {self.user.name}")
         print(f"{self.user.name}: Mrrp~\nMeow! ^w^")
+        print("готов к работе")
 
         await self.change_presence(
             status=discord.Status.idle, activity=discord.Game("Mrrp~")
