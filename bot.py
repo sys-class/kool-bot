@@ -8,11 +8,14 @@ from discord.ext import commands
 
 from config import (
     TOKEN,
+    GUILD_ID,
     SOURCE_CHANNEL_1,
     SOURCE_CHANNEL_2,
     TARGET_VOICE_CHANNELS,
     ALLOWED_USERS,
 )
+
+GUILD = discord.Object(id=GUILD_ID)
 from services import embeds
 from services.cooldown import CooldownManager
 from services.storage import read_json, write_json, write_json_sync
@@ -126,8 +129,9 @@ class CoolBot(commands.Bot):
             log.info("  %s: %d каналов", guild_name, len(channels))
 
         try:
-            synced = await self.tree.sync()
-            log.info("Synced %d command(s)", len(synced))
+            self.tree.copy_global_to(guild=GUILD)
+            synced = await self.tree.sync(guild=GUILD)
+            log.info("Synced %d command(s) to guild %d", len(synced), GUILD_ID)
         except Exception:
             log.exception("Sync error")
 
