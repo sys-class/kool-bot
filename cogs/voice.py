@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 import discord
 from discord import app_commands
@@ -7,6 +8,8 @@ from discord.ext import commands, tasks
 from config import TARGET_VOICE_CHANNELS, SOURCE_CHANNEL_1
 from services import embeds
 from services.cooldown import CooldownManager
+
+log = logging.getLogger(__name__)
 
 
 class VoiceCog(commands.Cog):
@@ -26,8 +29,8 @@ class VoiceCog(commands.Cog):
         try:
             for guild in self.bot.guilds:
                 await self.cleanup_empty_home_channels(guild)
-        except Exception as e:
-            print(f"Background cleanup error: {e}")
+        except Exception:
+            log.exception("Background cleanup error")
 
     @cleanup_task.before_loop
     async def before_cleanup(self):
@@ -48,8 +51,8 @@ class VoiceCog(commands.Cog):
                             await channel.send(
                                 f"Пользователь {member.name} атакует войсы!!"
                             )
-                        except Exception as e:
-                            print(f"Warning error: {e}")
+                        except Exception:
+                            log.exception("Warning error")
                     return
 
                 category = after.channel.category
@@ -62,8 +65,8 @@ class VoiceCog(commands.Cog):
                         await member.move_to(voice_channel)
                         self.bot.channel_creators[voice_channel.id] = member.id
                         self.bot.bot_created_channels.add(voice_channel.id)
-                    except Exception as e:
-                        print(f"Move error: {e}")
+                    except Exception:
+                        log.exception("Move error")
                         try:
                             await voice_channel.delete()
                         except discord.HTTPException:
@@ -95,8 +98,8 @@ class VoiceCog(commands.Cog):
             )
 
             return voice_channel
-        except Exception as e:
-            print(f"Create channel error: {e}")
+        except Exception:
+            log.exception("Create channel error")
             return None
 
     async def check_and_cleanup_channel(self, channel):
@@ -118,11 +121,11 @@ class VoiceCog(commands.Cog):
             self.bot.channel_creators.pop(channel.id, None)
 
             await channel_obj.delete(reason="Пустой канал созданный ботом")
-            print(f"Удален пустой канал: {channel.name}")
+            log.info("Удален пустой канал: %s", channel.name)
         except discord.errors.NotFound:
-            print(f"Канал {channel.name} уже удален.")
-        except Exception as e:
-            print(f"Cleanup error: {e}")
+            log.info("Канал %s уже удален.", channel.name)
+        except Exception:
+            log.exception("Cleanup error")
 
     async def cleanup_empty_home_channels(self, guild):
         """Удаляет все пустые войсы созданные ботом."""
@@ -207,7 +210,7 @@ class VoiceCog(commands.Cog):
             msg = "недостаточно прав"
         else:
             msg = "что-то пошло не так"
-            print(f"Add target error: {error}")
+            log.error("Add target error: %s", error)
         await interaction.response.send_message(
             embed=embeds.err(msg, user=interaction.user),
             ephemeral=True,
@@ -258,7 +261,7 @@ class VoiceCog(commands.Cog):
             msg = "недостаточно прав"
         else:
             msg = "что-то пошло не так"
-            print(f"Remove target error: {error}")
+            log.error("Remove target error: %s", error)
         await interaction.response.send_message(
             embed=embeds.err(msg, user=interaction.user),
             ephemeral=True,

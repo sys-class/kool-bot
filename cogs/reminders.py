@@ -1,4 +1,4 @@
-import json
+import logging
 import re
 import time
 import uuid
@@ -9,6 +9,9 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 from services import embeds
+from services.storage import read_json, write_json, write_json_sync
+
+log = logging.getLogger(__name__)
 
 REMINDERS_FILE = Path("reminders.json")
 MAX_TEXT = 500
@@ -67,14 +70,13 @@ class RemindersCog(commands.Cog):
         self.reminders: list[dict] = self._load()
 
     def _load(self) -> list[dict]:
-        if not REMINDERS_FILE.exists():
-            return []
-        with open(REMINDERS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+        return read_json(REMINDERS_FILE, [])
 
-    def _save(self) -> None:
-        with open(REMINDERS_FILE, "w", encoding="utf-8") as f:
-            json.dump(self.reminders, f, ensure_ascii=False, separators=(",", ":"))
+    async def _save(self) -> None:
+        await write_json(REMINDERS_FILE, self.reminders)
+
+    def _save_sync(self) -> None:
+        write_json_sync(REMINDERS_FILE, self.reminders)
 
     async def cog_load(self):
         self.tick.start()
@@ -91,7 +93,7 @@ class RemindersCog(commands.Cog):
         for r in due:
             await self._deliver(r)
         self.reminders = [r for r in self.reminders if r["due"] > now]
-        self._save()
+        await self._save()
 
     @tick.before_loop
     async def _before_tick(self):
@@ -115,13 +117,13 @@ class RemindersCog(commands.Cog):
             try:
                 await channel.send(content=content, embed=embed)
                 return
-            except Exception as e:
-                print(f"Remind deliver error: {e}")
+            except Exception:
+                log.exception("Remind deliver error")
         if user is not None:
             try:
                 await user.send(embed=embed)
-            except Exception as e:
-                print(f"Remind DM fallback error: {e}")
+            except Exception:
+                log.exception("Remind DM fallback error")
 
     @app_commands.command(name="remind", description="Напомнить через время")
     @app_commands.describe(
@@ -175,7 +177,7 @@ class RemindersCog(commands.Cog):
                 "text": text,
             }
         )
-        self._save()
+        await self._save()
 
         await interaction.response.send_message(
             embed=embeds.ok(
@@ -225,7 +227,7 @@ class RemindersCog(commands.Cog):
                 ephemeral=True,
             )
             return
-        self._save()
+        await self._save()
         await interaction.response.send_message(
             embed=embeds.ok(
                 description=f"удалено · `{reminder_id}`", user=interaction.user

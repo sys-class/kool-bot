@@ -1,3 +1,7 @@
+import logging
+import math
+import re
+
 import discord
 from discord.ext import commands
 
@@ -12,10 +16,19 @@ from services import embeds
 from services.cooldown import CooldownManager
 from services.webhook import WebhookService
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+log = logging.getLogger(__name__)
+
 _FORWARD_MAP = {
     SOURCE_CHANNEL_1: SOURCE_CHANNEL_2,
     SOURCE_CHANNEL_2: SOURCE_CHANNEL_1,
 }
+
+# whole-word match, кириллические границы
+_ERP_RE = re.compile(r"(?:(?<=^)|(?<=[^\w]))ерп(?=$|[^\w])", re.IGNORECASE)
 
 
 class CoolBot(commands.Bot):
@@ -45,9 +58,10 @@ class CoolBot(commands.Bot):
             if interaction.user.id in ALLOWED_USERS:
                 return True
             if not self.command_cooldown.check_cooldown(interaction.user.id):
+                left = math.ceil(self.command_cooldown.remaining(interaction.user.id))
                 await interaction.response.send_message(
                     embed=embeds.err(
-                        f"подожди **{self.command_cooldown.cooldown_time} сек**",
+                        f"подожди **{left} сек**",
                         title="кулдаун",
                         user=interaction.user,
                     ),
@@ -59,37 +73,38 @@ class CoolBot(commands.Bot):
         self.tree.interaction_check = global_slash_cooldown
 
     async def on_ready(self):
-        print(f"Login: {self.user.name}")
-        print(f"{self.user.name}: Mrrp~\nMeow! ^w^")
-        print("готов к работе")
+        log.info("Login: %s", self.user.name)
+        log.info("%s: Mrrp~ Meow! ^w^", self.user.name)
+        log.info("готов к работе")
 
         await self.change_presence(
             status=discord.Status.idle, activity=discord.Game("Mrrp~")
         )
 
-        print(
-            f"Загружено целевых войс-каналов для {len(TARGET_VOICE_CHANNELS)} серверов:"
+        log.info(
+            "Загружено целевых войс-каналов для %d серверов:",
+            len(TARGET_VOICE_CHANNELS),
         )
         for guild_id, channels in TARGET_VOICE_CHANNELS.items():
             guild = self.get_guild(guild_id)
             guild_name = guild.name if guild else f"Unknown Guild ({guild_id})"
-            print(f"  {guild_name}: {len(channels)} каналов")
+            log.info("  %s: %d каналов", guild_name, len(channels))
 
         try:
             synced = await self.tree.sync()
-            print(f"Synced {len(synced)} command(s)")
-        except Exception as e:
-            print(f"Sync error: {e}")
+            log.info("Synced %d command(s)", len(synced))
+        except Exception:
+            log.exception("Sync error")
 
     async def on_message(self, message):
         if message.author.bot:
             return
 
-        if "ерп" in message.content.lower():
+        if _ERP_RE.search(message.content):
             try:
                 await message.channel.send(f"**Ну давай~ {message.author.mention} **")
-            except Exception as e:
-                print(f"Trigger error: {e}")
+            except Exception:
+                log.exception("Trigger error")
 
         target_id = _FORWARD_MAP.get(message.channel.id)
         if target_id is not None:
@@ -108,7 +123,7 @@ class CoolBot(commands.Bot):
             )
 
     async def on_disconnect(self):
-        print("Бот отключен")
+        log.info("Бот отключен")
 
 
 bot = CoolBot()
