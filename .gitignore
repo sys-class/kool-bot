@@ -9,3 +9,7 @@ mood.json
 reminders.json
 stats.json
 .ruff_cache/
+.pytest_cache/
+.venv/
+coverage.xml
+.coverage
