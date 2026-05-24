@@ -14,13 +14,12 @@ from config import (
     TARGET_VOICE_CHANNELS,
     ALLOWED_USERS,
 )
-
-GUILD = discord.Object(id=GUILD_ID)
 from services import embeds
 from services.cooldown import CooldownManager
 from services.storage import read_json, write_json, write_json_sync
 from services.webhook import WebhookService
 
+GUILD = discord.Object(id=GUILD_ID)
 TARGETS_FILE = Path("targets.json")
 CHANNELS_FILE = Path("channels.json")
 
