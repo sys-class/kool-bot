@@ -1,5 +1,5 @@
 import asyncio
-import json
+import logging
 import re
 from pathlib import Path
 
@@ -8,6 +8,9 @@ from discord import app_commands
 from discord.ext import commands
 
 from services import embeds
+from services.storage import read_json, write_json
+
+log = logging.getLogger(__name__)
 
 UWUIFIED_FILE = Path("uwuified.json")
 
@@ -78,15 +81,12 @@ class UwuifyCog(commands.Cog):
         self._load()
 
     def _load(self):
-        if UWUIFIED_FILE.exists():
-            with open(UWUIFIED_FILE, "r", encoding="utf-8") as f:
-                raw = json.load(f)
-            self.uwuified = {k: set(v) for k, v in raw.items()}
+        raw = read_json(UWUIFIED_FILE, {})
+        self.uwuified = {k: set(v) for k, v in raw.items()}
 
-    def _save(self):
+    async def _save(self):
         serializable = {k: list(v) for k, v in self.uwuified.items()}
-        with open(UWUIFIED_FILE, "w", encoding="utf-8") as f:
-            json.dump(serializable, f, separators=(",", ":"))
+        await write_json(UWUIFIED_FILE, serializable)
 
     def is_uwuified(self, guild_id: int, user_id: int) -> bool:
         return user_id in self.uwuified.get(str(guild_id), self._EMPTY)
@@ -114,7 +114,7 @@ class UwuifyCog(commands.Cog):
 
         if member.id in users:
             users.discard(member.id)
-            self._save()
+            await self._save()
             await interaction.response.send_message(
                 embed=embeds.fun(
                     description=f"акцент снят · {member.mention}", user=interaction.user
@@ -122,7 +122,7 @@ class UwuifyCog(commands.Cog):
             )
         else:
             users.add(member.id)
-            self._save()
+            await self._save()
             await interaction.response.send_message(
                 embed=embeds.fun(
                     description=f"акцент наложен · {member.mention}",
@@ -140,7 +140,7 @@ class UwuifyCog(commands.Cog):
             msg = "только на сервере"
         else:
             msg = "что-то пошло не так"
-            print(f"Uwuify error: {error}")
+            log.error("Uwuify error: %s", error)
         await interaction.response.send_message(
             embed=embeds.err(msg, user=interaction.user),
             ephemeral=True,
@@ -174,13 +174,13 @@ class UwuifyCog(commands.Cog):
                 if isinstance(r, discord.File):
                     files.append(r)
                 else:
-                    print(f"Uwuify attachment error: {r}")
+                    log.warning("Uwuify attachment error: %s", r)
 
         if not content and not files:
             return
 
         try:
-            await self.bot.webhook_service._send(
+            await self.bot.webhook_service.send(
                 message.channel,
                 "uwuify",
                 content=content,
@@ -188,8 +188,8 @@ class UwuifyCog(commands.Cog):
                 avatar_url=message.author.display_avatar.url,
                 files=files if files else discord.utils.MISSING,
             )
-        except Exception as e:
-            print(f"Uwuify webhook error: {e}")
+        except Exception:
+            log.exception("Uwuify webhook error")
 
 
 async def setup(bot: commands.Bot):

@@ -1,6 +1,9 @@
 import asyncio
+import logging
 
 import discord
+
+log = logging.getLogger(__name__)
 
 
 class WebhookService:
@@ -30,7 +33,7 @@ class WebhookService:
     def invalidate(self, channel_id: int, name: str):
         self.cache.pop(f"{channel_id}_{name}", None)
 
-    async def _send(self, channel: discord.TextChannel, name: str, **kwargs):
+    async def send(self, channel: discord.TextChannel, name: str, **kwargs):
         try:
             webhook = await self.get_or_create_webhook(channel, name)
             await webhook.send(**kwargs)
@@ -55,7 +58,7 @@ class WebhookService:
                 if isinstance(r, discord.File):
                     files.append(r)
                 else:
-                    print(f"Attachment error: {r}")
+                    log.warning("Attachment error: %s", r)
 
         if not content and not files:
             return
@@ -68,6 +71,6 @@ class WebhookService:
             files=files if files else discord.utils.MISSING,
         )
         try:
-            await self._send(target_channel, "Webhook", **kwargs)
-        except Exception as e:
-            print(f"Webhook error: {e}")
+            await self.send(target_channel, "Webhook", **kwargs)
+        except Exception:
+            log.exception("Webhook error")

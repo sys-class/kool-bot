@@ -1,9 +1,13 @@
+import logging
+
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from config import ALLOWED_USERS
 from services import embeds
+
+log = logging.getLogger(__name__)
 
 
 class ModerationCog(commands.Cog):
@@ -44,8 +48,8 @@ class ModerationCog(commands.Cog):
                 ),
                 ephemeral=True,
             )
-        except Exception as e:
-            print(f"Clear error: {e}")
+        except Exception:
+            log.exception("Clear error")
             await interaction.followup.send(
                 embed=embeds.err("что-то пошло не так", user=interaction.user),
                 ephemeral=True,
@@ -58,7 +62,7 @@ class ModerationCog(commands.Cog):
         if isinstance(error, app_commands.MissingPermissions):
             msg = "недостаточно прав"
         else:
-            print(f"Clear error: {error}")
+            log.error("Clear error: %s", error)
             msg = "что-то пошло не так"
         await interaction.response.send_message(
             embed=embeds.err(msg, user=interaction.user),
@@ -97,8 +101,8 @@ class ModerationCog(commands.Cog):
                 disconnected += 1
             except discord.errors.Forbidden:
                 pass
-            except Exception as e:
-                print(f"Disconnect member error: {e}")
+            except Exception:
+                log.exception("Disconnect member error")
 
         await interaction.followup.send(
             embed=embeds.mod(

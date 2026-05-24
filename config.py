@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 TOKEN = os.getenv("TOKEN", "")
+GUILD_ID = 1496231771602419772
 ALLOWED_USERS = [1043834316620304394, 587208453018091538]  # дискорд юзер айди
 
 TARGET_VOICE_CHANNELS = {

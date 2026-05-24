@@ -57,7 +57,7 @@ def bench_is_uwuified(n=200_000):
         cog.is_uwuified(123, 999_999)
 
 
-def bench_uwuify_save(n=500):
+async def bench_uwuify_save(n=500):
     cog = UwuifyCog.__new__(UwuifyCog)
     container_type = (
         set if isinstance(getattr(UwuifyCog, "_EMPTY", None), frozenset) else list
@@ -72,7 +72,7 @@ def bench_uwuify_save(n=500):
 
         mod.UWUIFIED_FILE = target
         for _ in range(n):
-            cog._save()
+            await cog._save()
 
 
 def bench_on_message_channel_map(n=200_000):
@@ -88,11 +88,11 @@ def bench_on_message_channel_map(n=200_000):
         _ = ids[i % 4] in channel_map
 
 
-def run_all():
+async def run_all():
     bench_felinid_accent()
     bench_cooldown()
     bench_is_uwuified()
-    bench_uwuify_save()
+    await bench_uwuify_save()
     bench_on_message_channel_map()
 
 
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     import asyncio
 
     async def main():
-        run_all()
+        await run_all()
 
     t0 = time.perf_counter()
     pr = cProfile.Profile()

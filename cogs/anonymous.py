@@ -1,9 +1,13 @@
+import logging
+
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from config import ANON_TARGET_CHANNEL_ID
 from services import embeds
+
+log = logging.getLogger(__name__)
 
 
 class AnonymousCog(commands.Cog):
@@ -49,8 +53,8 @@ class AnonymousCog(commands.Cog):
                 embed=embeds.ok(description="отправлено", user=interaction.user),
                 ephemeral=True,
             )
-        except Exception as e:
-            print(f"Anonsay error: {e}")
+        except Exception:
+            log.exception("Anonsay error")
             await interaction.response.send_message(
                 embed=embeds.err("что-то пошло не так", user=interaction.user),
                 ephemeral=True,
