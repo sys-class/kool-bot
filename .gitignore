@@ -11,4 +11,7 @@ stats.json
 targets.json
 channels.json
 .ruff_cache/
+.pytest_cache/
 .venv/
+coverage.xml
+.coverage

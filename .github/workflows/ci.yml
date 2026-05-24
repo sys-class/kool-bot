@@ -14,6 +14,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: install deps
+        run: |
+          python -m pip install --upgrade pip --disable-pip-version-check
+          pip install -r requirements.txt
+          pip install ruff
+
+      - name: cache lint
+        uses: actions/cache@v4
+        with:
+          path: .ruff_cache
+          key: lint-${{ runner.os }}-${{ hashFiles('requirements.txt') }}-${{ github.sha }}
+          restore-keys: |
+            lint-${{ runner.os }}-${{ hashFiles('requirements.txt') }}-
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: ruff format
+        if: always()
+        run: ruff format --check .
+
+      # mypy выпилен: давал 32 ошибки в 10 файлах (в основном implicit Optional
+      # в slash-командах и union-attr на discord.py каналах). Запускать с `|| true`
+      # бессмысленно — CI всегда зелёный и баги не ловит. Чтобы реально включить,
+      # надо: пройтись по cogs/, заменить `member: discord.Member = None` на
+      # `Member | None = None`, типизировать кастомные атрибуты CoolBot
+      # (webhook_service, command_cooldown), и расставить isinstance-guard'ы
+      # или assert'ы для channel.send() где канал может быть None/ForumChannel.
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -36,30 +78,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip --disable-pip-version-check
           pip install -r requirements.txt
-          pip install ruff mypy
+          pip install pytest pytest-asyncio pytest-cov
 
-      - name: lint
-        run: ruff check .
+      - name: tests
+        run: pytest tests/ -v --cov=. --cov-report=xml --cov-report=term
 
-      - name: format check
-        if: always()
-        run: ruff format --check .
-
-      - name: type check
-        if: always()
-        run: mypy --ignore-missing-imports . || true
-
-      # TODO: раскомментировать когда появится папка tests/
-      #
-      # - name: tests
-      #   run: |
-      #     pip install pytest pytest-cov
-      #     pytest tests/ -v --cov=. --cov-report=xml
-      #
-      # - name: upload coverage
-      #   if: matrix.python-version == '3.13' && success()
-      #   uses: codecov/codecov-action@v5
-      #   with:
-      #     token: ${{ secrets.CODECOV_TOKEN }}
-      #     files: ./coverage.xml
-      #     fail_ci_if_error: false
+      - name: upload coverage
+        if: matrix.python-version == '3.13' && success()
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          fail_ci_if_error: false

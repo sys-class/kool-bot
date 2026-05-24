@@ -24,7 +24,15 @@ jobs:
     timeout-minutes: 10
     if: github.event_name == 'push'
     steps:
-      - name: wait for CI workflow
+      - name: wait for lint
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'lint'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+
+      - name: wait for tests
         uses: lewagon/wait-on-check-action@v1.3.4
         with:
           ref: ${{ github.sha }}
@@ -86,8 +94,10 @@ jobs:
             set -e
             cd /opt/kool-bot
 
-            CURRENT_IMAGE=$(docker inspect kool-bot --format='{{.Config.Image}}' 2>/dev/null || echo "")
-            echo "$CURRENT_IMAGE" > .last-known-good
+            # запоминаем id (sha) текущего образа, а не тег :latest —
+            # тег после `compose pull` уедет на новый образ, а старый
+            # останется dangling и идентифицируется только по id
+            PREVIOUS_IMAGE_ID=$(docker inspect kool-bot --format='{{.Image}}' 2>/dev/null || echo "")
 
             docker compose pull
             docker compose up -d
@@ -96,15 +106,28 @@ jobs:
             if docker logs kool-bot --tail 100 2>&1 | grep -qE "(connected to Gateway|Logged in as|Bot is ready|on_ready|готов к работе)"; then
               echo "healthcheck passed"
               docker image prune -f
-            else
-              echo "healthcheck failed, rolling back"
-              if [ -n "$CURRENT_IMAGE" ]; then
-                docker compose down
-                sed -i "s|image: .*|image: $CURRENT_IMAGE|" docker-compose.yml
-                docker compose up -d
-              fi
+              exit 0
+            fi
+
+            echo "healthcheck failed"
+            if [ -z "$PREVIOUS_IMAGE_ID" ]; then
+              echo "no previous image to roll back to"
               exit 1
             fi
+
+            echo "rolling back to $PREVIOUS_IMAGE_ID"
+            # перевешиваем тег :latest обратно на старый образ и поднимаем
+            # контейнер заново — compose файл трогать не надо
+            docker tag "$PREVIOUS_IMAGE_ID" ghcr.io/sys-class/kool-bot:latest
+            docker compose up -d --force-recreate
+
+            sleep 15
+            if docker logs kool-bot --tail 100 2>&1 | grep -qE "(connected to Gateway|Logged in as|Bot is ready|on_ready|готов к работе)"; then
+              echo "rollback succeeded"
+            else
+              echo "rollback also failed — manual intervention needed"
+            fi
+            exit 1
 
       - name: notify success
         if: success()
