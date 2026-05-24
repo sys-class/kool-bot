@@ -19,15 +19,19 @@ class CooldownManager:
         cutoff = now - self.cooldown_time
         self.cooldowns = {uid: ts for uid, ts in self.cooldowns.items() if ts > cutoff}
 
-    def check_cooldown(self, user_id: int) -> bool:
-        now = time.monotonic()
+    def is_ready(self, user_id: int) -> bool:
         last = self.cooldowns.get(user_id, 0.0)
+        return time.monotonic() - last >= self.cooldown_time
 
-        if now - last < self.cooldown_time:
-            return False
-
+    def consume(self, user_id: int) -> None:
+        now = time.monotonic()
         self.cooldowns[user_id] = now
         self._maybe_prune(now)
+
+    def check_cooldown(self, user_id: int) -> bool:
+        if not self.is_ready(user_id):
+            return False
+        self.consume(user_id)
         return True
 
     def remaining(self, user_id: int) -> float:

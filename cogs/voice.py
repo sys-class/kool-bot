@@ -44,7 +44,7 @@ class VoiceCog(commands.Cog):
             target_channels = TARGET_VOICE_CHANNELS[guild_id]
 
             if after.channel and after.channel.id in target_channels:
-                if not self.cooldown_manager.check_cooldown(member.id):
+                if not self.cooldown_manager.is_ready(member.id):
                     channel = self.bot.get_channel(SOURCE_CHANNEL_1)
                     if channel:
                         try:
@@ -65,6 +65,8 @@ class VoiceCog(commands.Cog):
                         await member.move_to(voice_channel)
                         self.bot.channel_creators[voice_channel.id] = member.id
                         self.bot.bot_created_channels.add(voice_channel.id)
+                        self.cooldown_manager.consume(member.id)
+                        await self.bot.save_channels()
                     except Exception:
                         log.exception("Move error")
                         try:
@@ -111,6 +113,7 @@ class VoiceCog(commands.Cog):
         if not channel_obj:
             self.bot.bot_created_channels.discard(channel.id)
             self.bot.channel_creators.pop(channel.id, None)
+            await self.bot.save_channels()
             return
 
         if channel_obj.members:
@@ -119,6 +122,7 @@ class VoiceCog(commands.Cog):
         try:
             self.bot.bot_created_channels.discard(channel.id)
             self.bot.channel_creators.pop(channel.id, None)
+            await self.bot.save_channels()
 
             await channel_obj.delete(reason="Пустой канал созданный ботом")
             log.info("Удален пустой канал: %s", channel.name)
@@ -196,6 +200,7 @@ class VoiceCog(commands.Cog):
             return
 
         TARGET_VOICE_CHANNELS[guild_id].append(channel_id)
+        await self.bot.save_targets()
         await interaction.response.send_message(
             embed=embeds.ok(
                 description=f"добавлен · {channel.mention}", user=interaction.user
@@ -246,6 +251,7 @@ class VoiceCog(commands.Cog):
         TARGET_VOICE_CHANNELS[guild_id].remove(channel_id)
         if not TARGET_VOICE_CHANNELS[guild_id]:
             del TARGET_VOICE_CHANNELS[guild_id]
+        await self.bot.save_targets()
 
         await interaction.response.send_message(
             embed=embeds.ok(

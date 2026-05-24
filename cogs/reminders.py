@@ -19,7 +19,7 @@ MAX_PER_USER = 25
 MIN_SECONDS = 10
 MAX_SECONDS = 60 * 60 * 24 * 30  # 30 дней
 
-_DURATION_TOKEN = re.compile(r"(\d+)\s*([smhdwу]|сек|мин|ч|д|нед)", re.IGNORECASE)
+_DURATION_TOKEN = re.compile(r"(\d+)\s*([smhdw]|сек|мин|ч|д|нед)", re.IGNORECASE)
 _UNIT_SECONDS = {
     "s": 1,
     "сек": 1,
@@ -31,7 +31,6 @@ _UNIT_SECONDS = {
     "д": 86400,
     "w": 604800,
     "нед": 604800,
-    "у": 1,  # ignore stray
 }
 
 

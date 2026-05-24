@@ -31,7 +31,7 @@ def _build(
     return _stamp(embed, user)
 
 
-def ok(
+def info(
     title: str | None = None, description: str | None = None, *, user=None
 ) -> discord.Embed:
     return _build(ACCENT, title, description, user)
@@ -41,28 +41,11 @@ def err(description: str, *, title: str = "ошибка", user=None) -> discord.
     return _build(ERROR, title, description, user)
 
 
-def info(
-    title: str | None = None, description: str | None = None, *, user=None
-) -> discord.Embed:
-    return _build(ACCENT, title, description, user)
-
-
-def fun(
-    title: str | None = None, description: str | None = None, *, user=None
-) -> discord.Embed:
-    return _build(ACCENT, title, description, user)
-
-
-def mod(
-    title: str | None = None, description: str | None = None, *, user=None
-) -> discord.Embed:
-    return _build(ACCENT, title, description, user)
-
-
-def voice(
-    title: str | None = None, description: str | None = None, *, user=None
-) -> discord.Embed:
-    return _build(ACCENT, title, description, user)
+# семантические алиасы — один цвет, разные имена в местах вызова
+ok = info
+fun = info
+mod = info
+voice = info
 
 
 def bar(rate: int, width: int = 10) -> str:

@@ -1,6 +1,7 @@
 import logging
 import math
 import re
+from pathlib import Path
 
 import discord
 from discord.ext import commands
@@ -14,7 +15,11 @@ from config import (
 )
 from services import embeds
 from services.cooldown import CooldownManager
+from services.storage import read_json, write_json, write_json_sync
 from services.webhook import WebhookService
+
+TARGETS_FILE = Path("targets.json")
+CHANNELS_FILE = Path("channels.json")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,10 +43,40 @@ class CoolBot(commands.Bot):
         intents.members = True
         super().__init__(command_prefix="$", intents=intents, help_command=None)
 
-        self.channel_creators = {}
-        self.bot_created_channels = set()
+        self.channel_creators: dict[int, int] = {}
+        self.bot_created_channels: set[int] = set()
         self.webhook_service = WebhookService()
         self.command_cooldown = CooldownManager()
+
+        self._load_targets()
+        self._load_channels()
+
+    def _load_targets(self) -> None:
+        seed = {str(gid): list(cids) for gid, cids in TARGET_VOICE_CHANNELS.items()}
+        data = read_json(TARGETS_FILE, seed)
+        TARGET_VOICE_CHANNELS.clear()
+        for gid_str, cids in data.items():
+            TARGET_VOICE_CHANNELS[int(gid_str)] = list(cids)
+        if not TARGETS_FILE.exists():
+            write_json_sync(TARGETS_FILE, data)
+
+    async def save_targets(self) -> None:
+        data = {str(gid): list(cids) for gid, cids in TARGET_VOICE_CHANNELS.items()}
+        await write_json(TARGETS_FILE, data)
+
+    def _load_channels(self) -> None:
+        data = read_json(CHANNELS_FILE, {})
+        for cid_str, creator_id in data.items():
+            cid = int(cid_str)
+            self.bot_created_channels.add(cid)
+            self.channel_creators[cid] = int(creator_id)
+
+    async def save_channels(self) -> None:
+        data = {
+            str(cid): self.channel_creators.get(cid, 0)
+            for cid in self.bot_created_channels
+        }
+        await write_json(CHANNELS_FILE, data)
 
     async def setup_hook(self):
         await self.load_extension("cogs.moderation")
@@ -78,7 +113,7 @@ class CoolBot(commands.Bot):
         log.info("готов к работе")
 
         await self.change_presence(
-            status=discord.Status.idle, activity=discord.Game("Mrrp~")
+            status=discord.Status.online, activity=discord.Game("Mrrp~")
         )
 
         log.info(

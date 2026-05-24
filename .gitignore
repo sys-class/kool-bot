@@ -8,4 +8,6 @@ uwuified.json
 mood.json
 reminders.json
 stats.json
+targets.json
+channels.json
 .ruff_cache/
