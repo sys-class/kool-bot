@@ -1,4 +1,3 @@
-import json
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -8,6 +7,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 from services import embeds
+from services.storage import read_json, write_json, write_json_sync
 
 STATS_FILE = Path("stats.json")
 RETENTION_HOURS = 24 * 7
@@ -46,14 +46,10 @@ class StatsCog(commands.Cog):
         self.dirty = False
 
     def _load(self) -> dict:
-        if not STATS_FILE.exists():
-            return {"guilds": {}}
-        with open(STATS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+        return read_json(STATS_FILE, {"guilds": {}})
 
-    def _save(self) -> None:
-        with open(STATS_FILE, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, separators=(",", ":"))
+    async def _save(self) -> None:
+        await write_json(STATS_FILE, self.data)
 
     async def cog_load(self):
         self.flush.start()
@@ -61,13 +57,13 @@ class StatsCog(commands.Cog):
     async def cog_unload(self):
         self.flush.cancel()
         if self.dirty:
-            self._save()
+            write_json_sync(STATS_FILE, self.data)
 
     @tasks.loop(seconds=60)
     async def flush(self):
         self._prune()
         if self.dirty:
-            self._save()
+            await self._save()
             self.dirty = False
 
     @flush.before_loop

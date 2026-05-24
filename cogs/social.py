@@ -1,5 +1,4 @@
 import datetime
-import json
 from pathlib import Path
 
 import discord
@@ -7,21 +6,18 @@ from discord import app_commands
 from discord.ext import commands
 
 from services import embeds
+from services.storage import read_json, write_json
 
 MOOD_FILE = Path("mood.json")
 MAX_MOOD_LEN = 40
 
 
 def _load() -> dict[str, dict[str, str]]:
-    if not MOOD_FILE.exists():
-        return {}
-    with open(MOOD_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return read_json(MOOD_FILE, {})
 
 
-def _save(data: dict[str, dict[str, str]]) -> None:
-    with open(MOOD_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+async def _save(data: dict[str, dict[str, str]]) -> None:
+    await write_json(MOOD_FILE, data)
 
 
 def _relative(ts: datetime.datetime) -> str:
@@ -70,7 +66,7 @@ class SocialCog(commands.Cog):
                 del self.moods[guild_key][user_key]
                 if not self.moods[guild_key]:
                     del self.moods[guild_key]
-                _save(self.moods)
+                await _save(self.moods)
             await interaction.response.send_message(
                 embed=embeds.ok(
                     description="настроение сброшено", user=interaction.user
@@ -89,7 +85,7 @@ class SocialCog(commands.Cog):
             return
 
         self.moods.setdefault(guild_key, {})[user_key] = text
-        _save(self.moods)
+        await _save(self.moods)
         await interaction.response.send_message(
             embed=embeds.ok(
                 description=f"настроение · **{text}**", user=interaction.user

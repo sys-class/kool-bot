@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 import discord
 from discord import app_commands
@@ -6,6 +7,8 @@ from discord.ext import commands
 
 from config import timezones
 from services import embeds
+
+log = logging.getLogger(__name__)
 
 
 class UtilityCog(commands.Cog):
@@ -48,9 +51,27 @@ class UtilityCog(commands.Cog):
 
     @app_commands.command(name="say", description="Отправляет сообщение от имени бота")
     @app_commands.describe(text="Текст сообщения")
+    @app_commands.checks.has_permissions(manage_messages=True)
+    @app_commands.default_permissions(manage_messages=True)
     @app_commands.guild_only()
     async def say(self, interaction: discord.Interaction, text: str):
         await interaction.response.send_message(text)
+
+    @say.error
+    async def say_error(
+        self, interaction: discord.Interaction, error: app_commands.AppCommandError
+    ):
+        if isinstance(error, app_commands.MissingPermissions):
+            msg = "недостаточно прав"
+        elif isinstance(error, app_commands.NoPrivateMessage):
+            msg = "только на сервере"
+        else:
+            log.error("Say error: %s", error)
+            msg = "что-то пошло не так"
+        await interaction.response.send_message(
+            embed=embeds.err(msg, user=interaction.user),
+            ephemeral=True,
+        )
 
     @app_commands.command(
         name="time", description="Показывает текущее время в разных часовых поясах"
@@ -71,8 +92,8 @@ class UtilityCog(commands.Cog):
                     title="время", description="\n".join(lines), user=interaction.user
                 )
             )
-        except Exception as e:
-            print(f"Time error: {e}")
+        except Exception:
+            log.exception("Time error")
             await interaction.response.send_message(
                 embed=embeds.err("не удалось получить время", user=interaction.user),
                 ephemeral=True,
@@ -89,8 +110,8 @@ class UtilityCog(commands.Cog):
             embed = embeds.info(title=member.display_name, user=interaction.user)
             embed.set_image(url=avatar_url)
             await interaction.response.send_message(embed=embed)
-        except Exception as e:
-            print(f"Avatar error: {e}")
+        except Exception:
+            log.exception("Avatar error")
             await interaction.response.send_message(
                 embed=embeds.err("не удалось получить аватар", user=interaction.user),
                 ephemeral=True,
