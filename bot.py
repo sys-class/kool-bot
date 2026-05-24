@@ -127,8 +127,10 @@ class CoolBot(commands.Bot):
             guild_name = guild.name if guild else f"Unknown Guild ({guild_id})"
             log.info("  %s: %d каналов", guild_name, len(channels))
 
-        try:
+        try:  # pragma: no cover
             self.tree.copy_global_to(guild=GUILD)
+            self.tree.clear_commands(guild=None)
+            await self.tree.sync()
             synced = await self.tree.sync(guild=GUILD)
             log.info("Synced %d command(s) to guild %d", len(synced), GUILD_ID)
         except Exception:
