@@ -1,14 +1,14 @@
 import datetime
-from pathlib import Path
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+from config import DATA_DIR
 from services import embeds
 from services.storage import read_json, write_json
 
-MOOD_FILE = Path("mood.json")
+MOOD_FILE = DATA_DIR / "mood.json"
 MAX_MOOD_LEN = 40
 
 

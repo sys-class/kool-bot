@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pytz
 from dotenv import load_dotenv
@@ -6,6 +7,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 TOKEN = os.getenv("TOKEN", "")
+
+# каталог для json-состояния бота. в докере сюда примонтирован volume
+# (./data:/app/data), поэтому пишем именно туда, иначе состояние стирается
+# при каждом пересоздании контейнера
+DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 GUILD_ID = 1496231771602419772
 ALLOWED_USERS = [1043834316620304394, 587208453018091538]  # дискорд юзер айди
 
