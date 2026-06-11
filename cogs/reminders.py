@@ -18,6 +18,7 @@ MAX_TEXT = 500
 MAX_PER_USER = 25
 MIN_SECONDS = 10
 MAX_SECONDS = 60 * 60 * 24 * 30  # 30 дней
+MAX_DELIVERY_ATTEMPTS = 5
 
 _DURATION_TOKEN = re.compile(r"(\d+)\s*([smhdw]|сек|мин|ч|д|нед)", re.IGNORECASE)
 _UNIT_SECONDS = {
@@ -89,16 +90,28 @@ class RemindersCog(commands.Cog):
         due = [r for r in self.reminders if r["due"] <= now]
         if not due:
             return
+        done = set()
         for r in due:
-            await self._deliver(r)
-        self.reminders = [r for r in self.reminders if r["due"] > now]
+            if await self._deliver(r):
+                done.add(r["id"])
+                continue
+            r["attempts"] = r.get("attempts", 0) + 1
+            if r["attempts"] >= MAX_DELIVERY_ATTEMPTS:
+                log.error(
+                    "Reminder %s dropped after %d failed delivery attempts",
+                    r["id"],
+                    r["attempts"],
+                )
+                done.add(r["id"])
+        self.reminders = [r for r in self.reminders if r["id"] not in done]
         await self._save()
 
     @tick.before_loop
     async def _before_tick(self):
         await self.bot.wait_until_ready()
 
-    async def _deliver(self, r: dict):
+    async def _deliver(self, r: dict) -> bool:
+        """Пытается доставить напоминание. True если получилось."""
         embed = embeds.info(
             title="напоминание",
             description=r["text"],
@@ -115,14 +128,16 @@ class RemindersCog(commands.Cog):
         if channel is not None:
             try:
                 await channel.send(content=content, embed=embed)
-                return
+                return True
             except Exception:
                 log.exception("Remind deliver error")
         if user is not None:
             try:
                 await user.send(embed=embed)
+                return True
             except Exception:
                 log.exception("Remind DM fallback error")
+        return False
 
     @app_commands.command(name="remind", description="Напомнить через время")
     @app_commands.describe(
