@@ -120,16 +120,19 @@ class VoiceCog(commands.Cog):
             return
 
         try:
-            self.bot.bot_created_channels.discard(channel.id)
-            self.bot.channel_creators.pop(channel.id, None)
-            await self.bot.save_channels()
-
             await channel_obj.delete(reason="Пустой канал созданный ботом")
             log.info("Удален пустой канал: %s", channel.name)
         except discord.errors.NotFound:
             log.info("Канал %s уже удален.", channel.name)
         except Exception:
+            # канал не удалился — оставляем его в отслеживаемых,
+            # фоновая очистка попробует ещё раз
             log.exception("Cleanup error")
+            return
+
+        self.bot.bot_created_channels.discard(channel.id)
+        self.bot.channel_creators.pop(channel.id, None)
+        await self.bot.save_channels()
 
     async def cleanup_empty_home_channels(self, guild):
         """Удаляет все пустые войсы созданные ботом."""
