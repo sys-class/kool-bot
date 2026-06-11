@@ -8,5 +8,10 @@ import sys
 
 from services.health import is_healthy
 
-if __name__ == "__main__":
-    sys.exit(0 if is_healthy() else 1)
+
+def main() -> int:
+    return 0 if is_healthy() else 1
+
+
+if __name__ == "__main__":  # pragma: no cover
+    sys.exit(main())

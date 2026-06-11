@@ -190,8 +190,12 @@ class CoolBot(commands.Bot):
         log.info("Бот отключен")
 
 
-if not TOKEN:
-    raise SystemExit("TOKEN не задан: создай .env по образцу .env.example")
+def main() -> None:
+    if not TOKEN:
+        raise SystemExit("TOKEN не задан: создай .env по образцу .env.example")
+    bot = CoolBot()
+    bot.run(TOKEN)
 
-bot = CoolBot()
-bot.run(TOKEN)
+
+if __name__ == "__main__":
+    main()
