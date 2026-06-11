@@ -48,6 +48,8 @@ class AnonymousCog(commands.Cog):
                 content=message[:2000],
                 username=self.bot.user.name,
                 avatar_url=self.bot.user.avatar.url if self.bot.user.avatar else None,
+                # аноним не должен никого пинговать
+                allowed_mentions=discord.AllowedMentions.none(),
             )
             await interaction.response.send_message(
                 embed=embeds.ok(description="отправлено", user=interaction.user),

@@ -1,4 +1,12 @@
-from cogs.reminders import _fmt_remaining, _parse_duration
+import asyncio
+import time
+
+from cogs.reminders import (
+    MAX_DELIVERY_ATTEMPTS,
+    RemindersCog,
+    _fmt_remaining,
+    _parse_duration,
+)
 
 
 def test_parse_seconds():
@@ -59,3 +67,64 @@ def test_fmt_days_round():
 
 def test_fmt_days_with_hours():
     assert _fmt_remaining(86400 + 7200) == "1 д 2 ч"
+
+
+def _make_cog(reminders):
+    cog = RemindersCog.__new__(RemindersCog)
+    cog.bot = None
+    cog.reminders = reminders
+
+    async def _save():
+        pass
+
+    cog._save = _save
+    return cog
+
+
+def _reminder(**extra):
+    return {
+        "id": "abc12345",
+        "user_id": 1,
+        "channel_id": 2,
+        "due": time.time() - 5,
+        "text": "тест",
+        **extra,
+    }
+
+
+def _run_tick(cog):
+    asyncio.run(RemindersCog.tick.coro(cog))
+
+
+def test_tick_keeps_reminder_on_failed_delivery():
+    cog = _make_cog([_reminder()])
+
+    async def _deliver(r):
+        return False
+
+    cog._deliver = _deliver
+    _run_tick(cog)
+    assert len(cog.reminders) == 1
+    assert cog.reminders[0]["attempts"] == 1
+
+
+def test_tick_drops_reminder_after_max_attempts():
+    cog = _make_cog([_reminder(attempts=MAX_DELIVERY_ATTEMPTS - 1)])
+
+    async def _deliver(r):
+        return False
+
+    cog._deliver = _deliver
+    _run_tick(cog)
+    assert cog.reminders == []
+
+
+def test_tick_removes_delivered_reminder():
+    cog = _make_cog([_reminder()])
+
+    async def _deliver(r):
+        return True
+
+    cog._deliver = _deliver
+    _run_tick(cog)
+    assert cog.reminders == []
