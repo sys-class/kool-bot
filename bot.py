@@ -43,7 +43,15 @@ class CoolBot(commands.Bot):
         intents = discord.Intents.default()
         intents.message_content = True
         intents.members = True
-        super().__init__(command_prefix="$", intents=intents, help_command=None)
+        super().__init__(
+            command_prefix="$",
+            intents=intents,
+            help_command=None,
+            # глобальный дефолт: чужой текст (вебхуки, /say) не должен пинговать сервер
+            allowed_mentions=discord.AllowedMentions(
+                everyone=False, roles=False, users=True
+            ),
+        )
 
         self.channel_creators: dict[int, int] = {}
         self.bot_created_channels: set[int] = set()
@@ -165,6 +173,9 @@ class CoolBot(commands.Bot):
     async def on_disconnect(self):
         log.info("Бот отключен")
 
+
+if not TOKEN:
+    raise SystemExit("TOKEN не задан: создай .env по образцу .env.example")
 
 bot = CoolBot()
 bot.run(TOKEN)

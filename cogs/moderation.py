@@ -9,6 +9,8 @@ from services import embeds
 
 log = logging.getLogger(__name__)
 
+MAX_PURGE = 200
+
 
 class ModerationCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -21,10 +23,10 @@ class ModerationCog(commands.Cog):
     @app_commands.checks.has_permissions(manage_messages=True)
     @app_commands.default_permissions(manage_messages=True)
     async def clear(self, interaction: discord.Interaction, amount: int = 10):
-        if amount <= 0:
+        if amount <= 0 or amount > MAX_PURGE:
             await interaction.response.send_message(
                 embed=embeds.err(
-                    "количество должно быть больше нуля", user=interaction.user
+                    f"количество · от 1 до {MAX_PURGE}", user=interaction.user
                 ),
                 ephemeral=True,
             )

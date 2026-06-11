@@ -5,6 +5,10 @@ import discord
 
 log = logging.getLogger(__name__)
 
+# пересылаемый текст пишут пользователи: пинги людей оставляем,
+# @everyone и роли через вебхук пробивать нельзя
+SAFE_MENTIONS = discord.AllowedMentions(everyone=False, roles=False, users=True)
+
 
 class WebhookService:
     def __init__(self):
@@ -34,6 +38,7 @@ class WebhookService:
         self.cache.pop(f"{channel_id}_{name}", None)
 
     async def send(self, channel: discord.TextChannel, name: str, **kwargs):
+        kwargs.setdefault("allowed_mentions", SAFE_MENTIONS)
         try:
             webhook = await self.get_or_create_webhook(channel, name)
             await webhook.send(**kwargs)
