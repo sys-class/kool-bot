@@ -99,11 +99,21 @@ jobs:
             # останется dangling и идентифицируется только по id
             PREVIOUS_IMAGE_ID=$(docker inspect kool-bot --format='{{.Image}}' 2>/dev/null || echo "")
 
+            # смотрим логи только текущего запуска контейнера (--since его
+            # StartedAt), а не последние 100 строк. compose up -d может ничего
+            # не пересоздавать, если образ не поменялся — тогда ready-строка
+            # старого запуска давно уехала за пределы tail и healthcheck
+            # ложно падал (см. #15)
+            check_ready() {
+              STARTED_AT=$(docker inspect kool-bot --format='{{.State.StartedAt}}' 2>/dev/null) || return 1
+              docker logs kool-bot --since "$STARTED_AT" 2>&1 | grep -qE "(connected to Gateway|Logged in as|Bot is ready|on_ready|готов к работе)"
+            }
+
             docker compose pull
             docker compose up -d
 
             sleep 30
-            if docker logs kool-bot --tail 100 2>&1 | grep -qE "(connected to Gateway|Logged in as|Bot is ready|on_ready|готов к работе)"; then
+            if check_ready; then
               echo "healthcheck passed"
               docker image prune -f
               exit 0
@@ -122,7 +132,7 @@ jobs:
             docker compose up -d --force-recreate
 
             sleep 15
-            if docker logs kool-bot --tail 100 2>&1 | grep -qE "(connected to Gateway|Logged in as|Bot is ready|on_ready|готов к работе)"; then
+            if check_ready; then
               echo "rollback succeeded"
             else
               echo "rollback also failed — manual intervention needed"
