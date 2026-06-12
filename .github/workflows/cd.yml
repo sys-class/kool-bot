@@ -26,7 +26,7 @@ jobs:
     if: github.event_name == 'push'
     steps:
       - name: wait for lint
-        uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc # v1.3.4
+        uses: lewagon/wait-on-check-action@96d9100b431964d10e0136aff8b9ccb92470505e # v1.8.0
         with:
           ref: ${{ github.sha }}
           check-name: 'lint'
@@ -34,7 +34,7 @@ jobs:
           wait-interval: 10
 
       - name: wait for tests
-        uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc # v1.3.4
+        uses: lewagon/wait-on-check-action@96d9100b431964d10e0136aff8b9ccb92470505e # v1.8.0
         with:
           ref: ${{ github.sha }}
           check-name: 'test (3.13)'
