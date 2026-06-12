@@ -6,7 +6,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-TOKEN = os.getenv("TOKEN", "")
+
+def _load_token() -> str:
+    # TOKEN_FILE — путь к файлу с токеном (docker secret). имеет приоритет
+    # над переменной TOKEN, чтобы секрет не светился в /proc/1/environ и
+    # в выводе docker inspect. если файл задан, но не читается — возвращаем
+    # пустую строку: бот упадёт с понятной ошибкой, а не уедет на старый
+    # токен из окружения
+    token_file = os.getenv("TOKEN_FILE")
+    if token_file:
+        try:
+            return Path(token_file).read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+    return os.getenv("TOKEN", "")
+
+
+TOKEN = _load_token()
 
 # каталог для json-состояния бота. в докере сюда примонтирован volume
 # (./data:/app/data), поэтому пишем именно туда, иначе состояние стирается

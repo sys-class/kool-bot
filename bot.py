@@ -65,8 +65,14 @@ class CoolBot(commands.Bot):
     @tasks.loop(seconds=30)
     async def _heartbeat(self) -> None:
         # пишем отметку живости, только пока соединение реально открыто —
-        # её читает HEALTHCHECK образа (см. services/health.py)
-        if self.is_closed():
+        # её читает HEALTHCHECK образа (см. services/health.py).
+        # is_closed() остаётся False во время авто-реконнекта гейтвея, так
+        # что одного его мало: дополнительно требуем is_ready() и конечный
+        # latency (во время обрыва он становится nan/inf), иначе отвалившийся
+        # бот продолжал бы отчитываться как healthy
+        if self.is_closed() or not self.is_ready():
+            return
+        if not math.isfinite(self.latency):
             return
         try:
             write_heartbeat()

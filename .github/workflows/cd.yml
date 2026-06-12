@@ -5,6 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      # checkov:skip=CKV_GHA_7:input влияет только на выбор уже собранного образа для отката, dispatch никогда не пересобирает (см. job build-and-push)
       image_tag:
         description: 'Existing image tag/sha to (re)deploy. Dispatch never rebuilds — это откат/повторная раскатка уже собранного образа.'
         required: true
