@@ -1,15 +1,15 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
+from config import DATA_DIR
 from services import embeds
 from services.storage import read_json, write_json, write_json_sync
 
-STATS_FILE = Path("stats.json")
+STATS_FILE = DATA_DIR / "stats.json"
 RETENTION_HOURS = 24 * 7
 SPARK_CHARS = "▁▂▃▄▅▆▇█"
 

@@ -1,18 +1,18 @@
 import asyncio
 import logging
 import re
-from pathlib import Path
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+from config import DATA_DIR
 from services import embeds
 from services.storage import read_json, write_json
 
 log = logging.getLogger(__name__)
 
-UWUIFIED_FILE = Path("uwuified.json")
+UWUIFIED_FILE = DATA_DIR / "uwuified.json"
 
 PROTECTED_USERS = {1130462413087592528}
 

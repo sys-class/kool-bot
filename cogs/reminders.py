@@ -2,18 +2,18 @@ import logging
 import re
 import time
 import uuid
-from pathlib import Path
 
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
+from config import DATA_DIR
 from services import embeds
 from services.storage import read_json, write_json, write_json_sync
 
 log = logging.getLogger(__name__)
 
-REMINDERS_FILE = Path("reminders.json")
+REMINDERS_FILE = DATA_DIR / "reminders.json"
 MAX_TEXT = 500
 MAX_PER_USER = 25
 MIN_SECONDS = 10
