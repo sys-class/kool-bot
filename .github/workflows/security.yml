@@ -12,18 +12,22 @@ permissions:
   contents: read
 
 jobs:
-  secrets:
-    name: secret scan
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-        with:
-          fetch-depth: 0
-      - name: gitleaks
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
-        env:
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+  # TODO: gitleaks-action требует GITLEAKS_LICENSE для GitHub-организаций и без
+  # него падает на проверке лицензии, не успев просканировать. Временно отключено
+  # до получения лицензионного ключа. Секрет-сканирование пока покрывает trivy fs
+  # ниже (scanners включают secret).
+  # secrets:
+  #   name: secret scan
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 10
+  #   steps:
+  #     - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+  #       with:
+  #         fetch-depth: 0
+  #     - name: gitleaks
+  #       uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+  #       env:
+  #         GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
   deps-and-fs:
     name: dependency / filesystem scan
