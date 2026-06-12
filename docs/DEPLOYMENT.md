@@ -35,12 +35,44 @@ CD pipeline для kool-bot устроен так:
 В `/opt/kool-bot/`:
 
 - `docker-compose.yml` — host-specific конфиг, тянет образ из GHCR. В репу НЕ коммитится.
-- `.env` — секреты бота (токен Discord и т.п.). В репу НЕ коммитится.
-- `.last-known-good` — создаётся CD-скриптом, хранит имя предыдущего образа (для rollback).
+- `data/` — состояние бота (json-файлы, heartbeat). Принадлежит `1000:1000`.
+- `secrets/bot_token` — токен Discord одним файлом (без перевода строки). `0400`, владелец `1000:1000` — контейнер работает от uid 1000, а compose-секрет в не-swarm режиме это bind mount, который сохраняет права хостового файла.
 
 Контейнер должен называться `kool-bot` (`container_name: kool-bot` в compose).
 
+Токен передаётся как docker secret: compose монтирует `secrets/bot_token` в `/run/secrets/bot_token`, а переменная `TOKEN_FILE=/run/secrets/bot_token` говорит боту читать его из файла (`config.py`). Раньше токен жил в `.env` и торчал в `/proc/1/environ` и `docker inspect`; `env_file` из compose убран.
+
 Состояние бота (json-файлы) пишется в `DATA_DIR` (по умолчанию `/app/data`), куда монтируется volume `./data:/app/data`. Каталог должен быть доступен на запись пользователю `bot` (uid 1000). Раньше бот писал в `/app` и состояние стиралось при каждом пересоздании контейнера.
+
+Сервис в compose захарднен: `read_only: true` (единственные записываемые пути — volume `/app/data` и tmpfs `/tmp`), `cap_drop: [ALL]`, `no-new-privileges:true`, `pids_limit`, `mem_limit`. При добавлении новых путей записи в коде это нужно учитывать.
+
+Опорный вид сервиса (host-конфиг, в репе не лежит):
+
+```yaml
+services:
+  kool-bot:
+    image: ghcr.io/sys-class/kool-bot:latest
+    container_name: kool-bot
+    restart: unless-stopped
+    secrets:
+      - bot_token
+    environment:
+      - TOKEN_FILE=/run/secrets/bot_token
+    volumes:
+      - ./data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 512m
+
+secrets:
+  bot_token:
+    file: ./secrets/bot_token
+```
 
 ## Ручной деплой
 
@@ -48,10 +80,13 @@ GitHub → Actions → CD → Run workflow.
 
 В поле `image_tag` нужно указать конкретный тег (SHA коммита) уже существующего образа. Ручной запуск НЕ пересобирает код — он только повторно раскатывает указанный образ (это и есть откат). Поэтому поле обязательное.
 
-## Known limitations
+## Модель тегов (принятое решение)
 
-- `latest` на прод-хосте перевешивается CD на digest текущей раскатки. На стороне registry тег `latest` по-прежнему указывает на последнюю сборку из `main` — для воспроизводимости раскатки опирайся на SHA-тег/digest, а не на `latest`.
-- Прод-`docker-compose.yml` тянет образ по тегу `latest` (CD ретегает его локально на нужный digest перед `up`). Полное закрепление по digest на стороне compose требует правок host-конфига в `/opt/kool-bot/` (вне репозитория).
+Прод-`docker-compose.yml` намеренно остаётся на `image: ...:latest`. Локальный тег `latest` на хосте — это указатель, которым управляет только CD: перед `up` он тянет ровно собранный образ по неизменяемому digest (на push) или по SHA-тегу (на dispatch) и перевешивает на него локальный `latest`. Registry-side `latest` на хост не попадает.
+
+Альтернатива (compose закреплён на `@sha256:...`) отвергнута: тогда каждый деплой должен переписывать `image:` в host-конфиге, и рассинхрон CD со скриптом на хосте навсегда пиннил бы старый образ.
+
+Следствие: для воспроизводимости раскатки опирайся на SHA-тег/digest из CD-логов, а не на `latest` в registry.
 
 ## Откат
 
@@ -65,28 +100,20 @@ GitHub → Actions → CD → Run workflow.
 ```bash
 ssh -p <DEPLOY_PORT> deploy@<DEPLOY_HOST>
 cd /opt/kool-bot
-docker compose down
-# править docker-compose.yml: image: ghcr.io/sys-class/kool-bot:<good-sha>
-docker compose pull
-docker compose up -d
+# перевесить локальный latest на нужный образ, как это делает CD
+docker pull ghcr.io/sys-class/kool-bot:<good-sha>
+docker tag ghcr.io/sys-class/kool-bot:<good-sha> ghcr.io/sys-class/kool-bot:latest
+docker compose up -d --force-recreate
 docker logs kool-bot --tail 50
 ```
 
-Либо использовать `.last-known-good`:
-
-```bash
-cd /opt/kool-bot
-PREV=$(cat .last-known-good)
-sed -i "s|image: .*|image: $PREV|" docker-compose.yml
-docker compose up -d
-```
+CD при фейле healthcheck откатывается сам: id предыдущего образа он запоминает через `docker inspect` перед раскаткой.
 
 ## Добавление новых переменных окружения
 
-1. На хосте: добавить переменную в `/opt/kool-bot/.env`.
-2. Убедиться, что в `docker-compose.yml` сервис её подхватывает (`env_file: .env` или `environment:` секция).
-3. Перезапустить: `cd /opt/kool-bot && docker compose up -d`.
-4. Обновить `.env.example` в репе для документирования (без значения).
+1. На хосте: добавить переменную в секцию `environment:` сервиса в `/opt/kool-bot/docker-compose.yml` (секреты — отдельными файлами через `secrets:`, по образцу `bot_token`).
+2. Перезапустить: `cd /opt/kool-bot && docker compose up -d --force-recreate`.
+3. Обновить `.env.example` в репе для документирования (без значения) — локально бот по-прежнему читает `.env`.
 
 Если переменная нужна на этапе сборки (build args) — добавлять через Dockerfile + workflow, не через `.env`.
 
