@@ -7,6 +7,9 @@ __pycache__/
 *.pyc
 *.pyo
 
+# состояние бота: пишется в DATA_DIR (по умолчанию ./data)
+data/
+.heartbeat
 uwuified.json
 mood.json
 reminders.json

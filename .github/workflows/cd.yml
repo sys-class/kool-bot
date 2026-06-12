@@ -5,9 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      # checkov:skip=CKV_GHA_7:input влияет только на выбор уже собранного образа для отката, dispatch никогда не пересобирает (см. job build-and-push)
       image_tag:
-        description: 'Image tag to deploy (default: latest commit SHA)'
-        required: false
+        description: 'Existing image tag/sha to (re)deploy. Dispatch never rebuilds — это откат/повторная раскатка уже собранного образа.'
+        required: true
         type: string
 
 permissions:
@@ -25,7 +26,7 @@ jobs:
     if: github.event_name == 'push'
     steps:
       - name: wait for lint
-        uses: lewagon/wait-on-check-action@v1.3.4
+        uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc # v1.3.4
         with:
           ref: ${{ github.sha }}
           check-name: 'lint'
@@ -33,7 +34,7 @@ jobs:
           wait-interval: 10
 
       - name: wait for tests
-        uses: lewagon/wait-on-check-action@v1.3.4
+        uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc # v1.3.4
         with:
           ref: ${{ github.sha }}
           check-name: 'test (3.13)'
@@ -42,78 +43,103 @@ jobs:
 
   build-and-push:
     needs: wait-for-ci
-    if: always() && (needs.wait-for-ci.result == 'success' || github.event_name == 'workflow_dispatch')
+    # собираем только на push. workflow_dispatch не пересобирает из main, а
+    # лишь повторно раскатывает уже существующий образ (см. #3 — иначе «откат»
+    # тегом перекатывал бы тег свежей сборкой из main и ничего не откатывал)
+    if: github.event_name == 'push' && needs.wait-for-ci.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
-      image_tag: ${{ steps.meta.outputs.tag }}
+      image_ref: ${{ steps.ref.outputs.image_ref }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: determine tag
-        id: meta
-        env:
-          INPUT_TAG: ${{ inputs.image_tag }}
-          SHA: ${{ github.sha }}
-        run: |
-          if [ -n "$INPUT_TAG" ]; then
-            echo "tag=$INPUT_TAG" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=$SHA" >> "$GITHUB_OUTPUT"
-          fi
       - name: build and push
-        uses: docker/build-push-action@v6
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           push: true
           tags: |
             ghcr.io/sys-class/kool-bot:latest
-            ghcr.io/sys-class/kool-bot:${{ steps.meta.outputs.tag }}
+            ghcr.io/sys-class/kool-bot:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: pin deploy ref to immutable digest
+        id: ref
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "image_ref=ghcr.io/sys-class/kool-bot@${DIGEST}" >> "$GITHUB_OUTPUT"
 
   deploy:
     needs: build-and-push
+    # на push ждём сборку; на dispatch build-and-push пропущен и катим сразу
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.build-and-push.result == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: resolve image ref
+        id: target
+        env:
+          BUILT_REF: ${{ needs.build-and-push.outputs.image_ref }}
+          INPUT_TAG: ${{ inputs.image_tag }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "image_ref=ghcr.io/sys-class/kool-bot:${INPUT_TAG}" >> "$GITHUB_OUTPUT"
+          else
+            echo "image_ref=${BUILT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: deploy via SSH
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        env:
+          IMAGE_REF: ${{ steps.target.outputs.image_ref }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT }}
+          envs: IMAGE_REF
           script: |
             set -e
             cd /opt/kool-bot
 
-            # запоминаем id (sha) текущего образа, а не тег :latest —
-            # тег после `compose pull` уедет на новый образ, а старый
-            # останется dangling и идентифицируется только по id
+            # запоминаем id (sha) текущего образа, а не тег :latest — после
+            # ретега :latest уедет на новый образ, а старый останется dangling
+            # и идентифицируется только по id
             PREVIOUS_IMAGE_ID=$(docker inspect kool-bot --format='{{.Image}}' 2>/dev/null || echo "")
 
-            # смотрим логи только текущего запуска контейнера (--since его
-            # StartedAt), а не последние 100 строк. compose up -d может ничего
-            # не пересоздавать, если образ не поменялся — тогда ready-строка
-            # старого запуска давно уехала за пределы tail и healthcheck
-            # ложно падал (см. #15)
-            check_ready() {
-              STARTED_AT=$(docker inspect kool-bot --format='{{.State.StartedAt}}' 2>/dev/null) || return 1
-              docker logs kool-bot --since "$STARTED_AT" 2>&1 | grep -qE "(connected to Gateway|Logged in as|Bot is ready|on_ready|готов к работе)"
+            # тянем ровно тот образ, что собрал CD (по digest на push, по тегу
+            # на dispatch), и перевешиваем на него локальный тег :latest. так на
+            # хост попадает именно проверенный образ, а не подвижный :latest из
+            # реестра, который мог быть перезаписан между сборкой и деплоем (#2)
+            docker pull "$IMAGE_REF"
+            docker tag "$IMAGE_REF" ghcr.io/sys-class/kool-bot:latest
+            docker compose up -d --force-recreate
+
+            # healthcheck по состоянию контейнера, а не по грепу логов на строку
+            # готовности (её мог напечатать любой образ — см. #4). образ теперь
+            # отдаёт HEALTHCHECK по живому heartbeat процесса бота
+            wait_healthy() {
+              for _ in $(seq 1 30); do
+                status=$(docker inspect kool-bot --format='{{.State.Health.Status}}' 2>/dev/null || echo "")
+                case "$status" in
+                  healthy) return 0 ;;
+                  unhealthy) return 1 ;;
+                esac
+                sleep 2
+              done
+              return 1
             }
 
-            docker compose pull
-            docker compose up -d
-
-            sleep 30
-            if check_ready; then
+            if wait_healthy; then
               echo "healthcheck passed"
               docker image prune -f
               exit 0
@@ -126,13 +152,10 @@ jobs:
             fi
 
             echo "rolling back to $PREVIOUS_IMAGE_ID"
-            # перевешиваем тег :latest обратно на старый образ и поднимаем
-            # контейнер заново — compose файл трогать не надо
             docker tag "$PREVIOUS_IMAGE_ID" ghcr.io/sys-class/kool-bot:latest
             docker compose up -d --force-recreate
 
-            sleep 15
-            if check_ready; then
+            if wait_healthy; then
               echo "rollback succeeded"
             else
               echo "rollback also failed — manual intervention needed"
@@ -141,16 +164,16 @@ jobs:
 
       - name: notify success
         if: success()
-        uses: sarisia/actions-status-discord@v1
+        uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
           status: "Success"
           title: "Deploy succeeded"
-          description: "`${{ needs.build-and-push.outputs.image_tag }}` is live"
+          description: "`${{ steps.target.outputs.image_ref }}` is live"
 
       - name: notify failure
         if: failure()
-        uses: sarisia/actions-status-discord@v1
+        uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
           status: "Failure"

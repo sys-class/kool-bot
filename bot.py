@@ -1,14 +1,14 @@
 import logging
 import math
 import re
-from pathlib import Path
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from config import (
     TOKEN,
     GUILD_ID,
+    DATA_DIR,
     SOURCE_CHANNEL_1,
     SOURCE_CHANNEL_2,
     TARGET_VOICE_CHANNELS,
@@ -16,12 +16,13 @@ from config import (
 )
 from services import embeds
 from services.cooldown import CooldownManager
+from services.health import write_heartbeat
 from services.storage import read_json, write_json, write_json_sync
 from services.webhook import WebhookService
 
 GUILD = discord.Object(id=GUILD_ID)
-TARGETS_FILE = Path("targets.json")
-CHANNELS_FILE = Path("channels.json")
+TARGETS_FILE = DATA_DIR / "targets.json"
+CHANNELS_FILE = DATA_DIR / "channels.json"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,6 +61,23 @@ class CoolBot(commands.Bot):
 
         self._load_targets()
         self._load_channels()
+
+    @tasks.loop(seconds=30)
+    async def _heartbeat(self) -> None:
+        # пишем отметку живости, только пока соединение реально открыто —
+        # её читает HEALTHCHECK образа (см. services/health.py).
+        # is_closed() остаётся False во время авто-реконнекта гейтвея, так
+        # что одного его мало: дополнительно требуем is_ready() и конечный
+        # latency (во время обрыва он становится nan/inf), иначе отвалившийся
+        # бот продолжал бы отчитываться как healthy
+        if self.is_closed() or not self.is_ready():
+            return
+        if not math.isfinite(self.latency):
+            return
+        try:
+            write_heartbeat()
+        except Exception:
+            log.exception("heartbeat write failed")
 
     def _load_targets(self) -> None:
         seed = {str(gid): list(cids) for gid, cids in TARGET_VOICE_CHANNELS.items()}
@@ -117,7 +135,11 @@ class CoolBot(commands.Bot):
 
         self.tree.interaction_check = global_slash_cooldown
 
+        if not self._heartbeat.is_running():
+            self._heartbeat.start()
+
     async def on_ready(self):
+        write_heartbeat()
         log.info("Login: %s", self.user.name)
         log.info("%s: Mrrp~ Meow! ^w^", self.user.name)
         log.info("готов к работе")
@@ -174,8 +196,12 @@ class CoolBot(commands.Bot):
         log.info("Бот отключен")
 
 
-if not TOKEN:
-    raise SystemExit("TOKEN не задан: создай .env по образцу .env.example")
+def main() -> None:
+    if not TOKEN:
+        raise SystemExit("TOKEN не задан: создай .env по образцу .env.example")
+    bot = CoolBot()
+    bot.run(TOKEN)
 
-bot = CoolBot()
-bot.run(TOKEN)
+
+if __name__ == "__main__":
+    main()
