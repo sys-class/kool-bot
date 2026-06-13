@@ -28,6 +28,18 @@ TOKEN = _load_token()
 # (./data:/app/data), поэтому пишем именно туда, иначе состояние стирается
 # при каждом пересоздании контейнера
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
+
+# уровень логов для разработчиков: DEBUG / INFO / WARNING / ERROR (WARN тоже ок).
+# на проде ставим повыше, локально опускаем до DEBUG. парсится в services.logger
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+# дублирование логов эмбедами в дискан. вебхук бот заводит сам, поэтому в
+# окружении только id канала и уровень (по умолчанию шлём от WARNING и выше).
+# LOG_PING_USER_ID пингуется на ERROR и выше
+LOG_CHANNEL_ID = int(os.getenv("LOG_CHANNEL_ID", "1496392803092271204"))
+DISCORD_LOG_LEVEL = os.getenv("DISCORD_LOG_LEVEL", "WARNING")
+LOG_PING_USER_ID = 587208453018091538
+
 GUILD_ID = 1496231771602419772
 ALLOWED_USERS = [1043834316620304394, 587208453018091538]  # дискорд юзер айди
 

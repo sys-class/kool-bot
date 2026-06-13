@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import math
 import re
@@ -9,6 +10,10 @@ from config import (
     TOKEN,
     GUILD_ID,
     DATA_DIR,
+    LOG_LEVEL,
+    LOG_CHANNEL_ID,
+    DISCORD_LOG_LEVEL,
+    LOG_PING_USER_ID,
     SOURCE_CHANNEL_1,
     SOURCE_CHANNEL_2,
     TARGET_VOICE_CHANNELS,
@@ -16,7 +21,9 @@ from config import (
 )
 from services import embeds
 from services.cooldown import CooldownManager
+from services.discord_log import DiscordLogHandler
 from services.health import write_heartbeat
+from services.logger import resolve_level, setup_logging
 from services.storage import read_json, write_json, write_json_sync
 from services.webhook import WebhookService
 
@@ -24,10 +31,6 @@ GUILD = discord.Object(id=GUILD_ID)
 TARGETS_FILE = DATA_DIR / "targets.json"
 CHANNELS_FILE = DATA_DIR / "channels.json"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
 log = logging.getLogger(__name__)
 
 _FORWARD_MAP = {
@@ -58,6 +61,7 @@ class CoolBot(commands.Bot):
         self.bot_created_channels: set[int] = set()
         self.webhook_service = WebhookService()
         self.command_cooldown = CooldownManager()
+        self._discord_log_handler: DiscordLogHandler | None = None
 
         self._load_targets()
         self._load_channels()
@@ -106,7 +110,36 @@ class CoolBot(commands.Bot):
         }
         await write_json(CHANNELS_FILE, data)
 
+    async def _setup_discord_logging(self) -> None:
+        # заводим (или переиспользуем) вебхук в лог-канале и вешаем хендлер на
+        # корневой логгер. вебхук бот достаёт сам, чтобы url не жил в окружении.
+        # сбой настройки не должен мешать запуску бота — логи всё равно в консоли
+        if not LOG_CHANNEL_ID:
+            return
+        try:
+            channel = self.get_channel(LOG_CHANNEL_ID) or await self.fetch_channel(
+                LOG_CHANNEL_ID
+            )
+            webhook = await self.webhook_service.get_or_create_webhook(
+                channel, "kool-bot logs"
+            )
+        except Exception:
+            log.exception("Discord log setup failed")
+            return
+
+        handler = DiscordLogHandler(
+            sender=lambda **kw: webhook.send(wait=False, **kw),
+            loop=asyncio.get_running_loop(),
+            ping_user_id=LOG_PING_USER_ID,
+            level=resolve_level(DISCORD_LOG_LEVEL, default=logging.WARNING),
+        )
+        handler.start()
+        logging.getLogger().addHandler(handler)
+        self._discord_log_handler = handler
+        log.info("Discord-логи включены в канале %d", LOG_CHANNEL_ID)
+
     async def setup_hook(self):
+        await self._setup_discord_logging()
         await self.load_extension("cogs.moderation")
         await self.load_extension("cogs.utility")
         await self.load_extension("cogs.anonymous")
@@ -116,6 +149,7 @@ class CoolBot(commands.Bot):
         await self.load_extension("cogs.social")
         await self.load_extension("cogs.reminders")
         await self.load_extension("cogs.stats")
+        await self.load_extension("cogs.dev")
 
         async def global_slash_cooldown(interaction: discord.Interaction) -> bool:
             if interaction.user.id in ALLOWED_USERS:
@@ -197,6 +231,7 @@ class CoolBot(commands.Bot):
 
 
 def main() -> None:
+    setup_logging(LOG_LEVEL)
     if not TOKEN:
         raise SystemExit("TOKEN не задан: создай .env по образцу .env.example")
     bot = CoolBot()
