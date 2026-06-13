@@ -37,7 +37,9 @@ _MAX_FOOTER = 2048
 _QUEUE_MAXSIZE = 1000
 
 
-def build_embed(record: logging.LogRecord, format_message: Callable[..., str]) -> discord.Embed:
+def build_embed(
+    record: logging.LogRecord, format_message: Callable[..., str]
+) -> discord.Embed:
     """Собирает эмбед из записи лога. ``format_message`` форматирует тело."""
     body = format_message(record)
     embed = discord.Embed(
@@ -48,7 +50,9 @@ def build_embed(record: logging.LogRecord, format_message: Callable[..., str]) -
             record.created, tz=datetime.timezone.utc
         ),
     )
-    embed.set_footer(text=f"{record.name} · {record.module}:{record.lineno}"[:_MAX_FOOTER])
+    embed.set_footer(
+        text=f"{record.name} · {record.module}:{record.lineno}"[:_MAX_FOOTER]
+    )
     return embed
 
 

@@ -93,9 +93,7 @@ def test_setup_logging_quiets_discord(clean_root):
 
 def test_color_formatter_wraps_levelname_for_tty():
     formatter = _ColorFormatter("%(levelname)s %(message)s")
-    record = logging.LogRecord(
-        "n", logging.ERROR, __file__, 1, "boom", None, None
-    )
+    record = logging.LogRecord("n", logging.ERROR, __file__, 1, "boom", None, None)
     out = formatter.format(record)
     assert "\033[31m" in out  # цвет ERROR
     assert "\033[0m" in out

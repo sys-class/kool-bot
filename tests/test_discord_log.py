@@ -16,7 +16,9 @@ def _record(level=logging.WARNING, msg="boom", name="test.mod"):
     return logging.LogRecord(name, level, __file__, 10, msg, None, None)
 
 
-@pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR])
+@pytest.mark.parametrize(
+    "level", [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR]
+)
 def test_build_embed_color_per_level(level):
     embed = build_embed(_record(level), logging.Formatter("%(message)s").format)
     assert embed.color.value == LEVEL_COLORS[level]
@@ -24,7 +26,9 @@ def test_build_embed_color_per_level(level):
 
 
 def test_build_embed_puts_message_in_codeblock():
-    embed = build_embed(_record(msg="привет %s"), logging.Formatter("%(message)s").format)
+    embed = build_embed(
+        _record(msg="привет %s"), logging.Formatter("%(message)s").format
+    )
     assert "привет %s" in embed.description
     assert embed.description.startswith("```")
 
