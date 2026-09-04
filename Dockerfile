@@ -1,6 +1,6 @@
 # базовый образ закреплён по digest, а не только по тегу: тег 3.13-slim
 # подвижный, digest гарантирует тот же самый образ при каждой сборке
-FROM python:3.14-slim@sha256:44dd04494ee8f3b538294360e7c4b3acb87c8268e4d0a4828a6500b1eff50061
+FROM python:3.14-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
 
 RUN useradd --create-home --uid 1000 --shell /bin/bash bot
 
