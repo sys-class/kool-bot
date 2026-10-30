@@ -63,7 +63,7 @@ class CoolBot(commands.Bot):
         self.command_cooldown = CooldownManager()
         self._discord_log_handler: DiscordLogHandler | None = None
         # on_ready срабатывает и после каждого не-resume реконнекта гейтвея,
-        # а синк команд нужен один раз на процесс
+        # а синк команд пробуем один раз на процесс
         self._commands_synced = False
 
         self._load_targets()
@@ -196,12 +196,14 @@ class CoolBot(commands.Bot):
 
         if self._commands_synced:
             return
+        # флаг ставим до попытки: на таймауте повторять синк на каждом
+        # реконнекте бессмысленно, следующая попытка — при рестарте процесса
+        self._commands_synced = True
         try:  # pragma: no cover
             self.tree.copy_global_to(guild=GUILD)
             self.tree.clear_commands(guild=None)
             await self.tree.sync()
             synced = await self.tree.sync(guild=GUILD)
-            self._commands_synced = True
             log.info("Synced %d command(s) to guild %d", len(synced), GUILD_ID)
         except TimeoutError:
             # провайдер замораживает ответы Discord после ~15 КБ (см.
