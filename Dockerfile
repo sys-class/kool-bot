@@ -7,7 +7,10 @@ RUN useradd --create-home --uid 1000 --shell /bin/bash bot
 WORKDIR /app
 
 COPY requirements.txt ./
-RUN pip install --no-cache-dir --require-hashes -r requirements.txt
+# pip в рантайме не нужен, а его вендоренные msgpack/urllib3/setuptools
+# trivy ловит как HIGH — сносим после установки зависимостей
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt \
+    && pip uninstall -y pip
 
 COPY . .
 
