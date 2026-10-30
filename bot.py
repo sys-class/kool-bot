@@ -62,6 +62,9 @@ class CoolBot(commands.Bot):
         self.webhook_service = WebhookService()
         self.command_cooldown = CooldownManager()
         self._discord_log_handler: DiscordLogHandler | None = None
+        # on_ready срабатывает и после каждого не-resume реконнекта гейтвея,
+        # а синк команд нужен один раз на процесс
+        self._commands_synced = False
 
         self._load_targets()
         self._load_channels()
@@ -191,12 +194,20 @@ class CoolBot(commands.Bot):
             guild_name = guild.name if guild else f"Unknown Guild ({guild_id})"
             log.info("  %s: %d каналов", guild_name, len(channels))
 
+        if self._commands_synced:
+            return
         try:  # pragma: no cover
             self.tree.copy_global_to(guild=GUILD)
             self.tree.clear_commands(guild=None)
             await self.tree.sync()
             synced = await self.tree.sync(guild=GUILD)
+            self._commands_synced = True
             log.info("Synced %d command(s) to guild %d", len(synced), GUILD_ID)
+        except TimeoutError:
+            # провайдер замораживает ответы Discord после ~15 КБ (см.
+            # docs/DEPLOYMENT.md), большой ответ синка не доходит. уже
+            # зарегистрированные команды при этом продолжают работать
+            log.warning("Sync timed out, keeping previously registered commands")
         except Exception:
             log.exception("Sync error")
 
