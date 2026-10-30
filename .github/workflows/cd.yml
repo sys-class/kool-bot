@@ -26,7 +26,7 @@ jobs:
     if: github.event_name == 'push'
     steps:
       - name: wait for lint
-        uses: lewagon/wait-on-check-action@96d9100b431964d10e0136aff8b9ccb92470505e # v1.8.0
+        uses: lewagon/wait-on-check-action@369769072fe522a3a8a85c03c96af1e5242a1994 # v1.9.1
         with:
           ref: ${{ github.sha }}
           check-name: 'lint'
@@ -34,7 +34,7 @@ jobs:
           wait-interval: 10
 
       - name: wait for tests
-        uses: lewagon/wait-on-check-action@96d9100b431964d10e0136aff8b9ccb92470505e # v1.8.0
+        uses: lewagon/wait-on-check-action@369769072fe522a3a8a85c03c96af1e5242a1994 # v1.9.1
         with:
           ref: ${{ github.sha }}
           check-name: 'test (3.13)'
@@ -52,17 +52,17 @@ jobs:
     outputs:
       image_ref: ${{ steps.ref.outputs.image_ref }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: login to GHCR
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: build and push
         id: build
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: true
@@ -127,8 +127,11 @@ jobs:
             # healthcheck по состоянию контейнера, а не по грепу логов на строку
             # готовности (её мог напечатать любой образ — см. #4). образ теперь
             # отдаёт HEALTHCHECK по живому heartbeat процесса бота
+            # ~3 минуты: HEALTHCHECK проверяет раз в 30s со start-period 60s,
+            # так что прежних ~60s едва хватало на вторую пробу — медленный
+            # коннект к гейтвею давал ложный откат
             wait_healthy() {
-              for _ in $(seq 1 30); do
+              for _ in $(seq 1 90); do
                 status=$(docker inspect kool-bot --format='{{.State.Health.Status}}' 2>/dev/null || echo "")
                 case "$status" in
                   healthy) return 0 ;;
@@ -164,7 +167,7 @@ jobs:
 
       - name: notify success
         if: success()
-        uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
+        uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1.16.0
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
           status: "Success"
@@ -173,7 +176,7 @@ jobs:
 
       - name: notify failure
         if: failure()
-        uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
+        uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1.16.0
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
           status: "Failure"
